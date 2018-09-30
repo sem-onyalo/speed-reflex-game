@@ -16,41 +16,63 @@ netModels = [
     }
 ]
 
-def create_capture(source = 0):
-    cap = cv.VideoCapture(source)
-    if cap is None or not cap.isOpened():
-        print('Warning: unable to open video source: ', source)
-    return cap
+class ObjectDetector:
+    img = None
+    netModel = None
+    detections = None
+    scoreThreshold = None
+    trackingThreshold = None
 
-def track_object(img, detections, score_threshold, classNames, className, tracking_threshold, label):
-    rows = img.shape[0]
-    cols = img.shape[1]
-    isObjectInPosition = False
-    for detection in detections:
-        score = float(detection[2])
-        class_id = int(detection[1])
-        if score > score_threshold and className == classNames[class_id]:
-            xRight = int(detection[5] * cols)
-            yBottom = int(detection[6] * rows)
-            marginLeft = int(detection[3] * cols) # xLeft
-            marginRight = cols - xRight # cols - xRight
-            marginTop = int(detection[4] * rows) # yTop
-            marginBottom = rows - yBottom # rows - yBottom
-            xMarginDiff = abs(marginLeft - marginRight)
-            yMarginDiff = abs(marginTop - marginBottom)
-            isObjectInPosition = (xMarginDiff < tracking_threshold and yMarginDiff < tracking_threshold)
-            boxColor = (0, 255, 0) if isObjectInPosition else (0, 0, 255)
-            cv.rectangle(img, (marginLeft, marginTop), (xRight, yBottom), boxColor, thickness=6)
-            # cv.putText(img, str(xLeft) + ' ' + str(xRight) + ' ' + str(yTop) + ' ' + str(yBottom), (10,50), cv.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255))
-    if label is not None:
-        xPadding = 20
-        if label == 'YOU WIN!':
-            xPadding = 200
-        cv.putText(img, label, (int(cols/2) - xPadding, int(rows/2)), cv.FONT_HERSHEY_SIMPLEX, 3, (255, 0, 0), thickness=7)
+    def __init__(self, netModel, scoreThreshold, trackingThreshold):
+        self.netModel = netModel
+        self.scoreThreshold = scoreThreshold
+        self.trackingThreshold = trackingThreshold
+        self.cvNet = cv.dnn.readNetFromTensorflow(self.netModel['modelPath'], self.netModel['configPath'])
+        self.cap = self.create_capture()
 
-    return isObjectInPosition
-        
-def run_game(netModel, classNameToDetect, scoreThreshold, trackingThreshold):
+    def getImage(self):
+        return self.img
+
+    def create_capture(self, source = 0):
+        cap = cv.VideoCapture(source)
+        if cap is None or not cap.isOpened():
+            print('Warning: unable to open video source: ', source)
+        return cap
+
+    def runDetection(self):
+        _, self.img = self.cap.read()
+        self.cvNet.setInput(cv.dnn.blobFromImage(self.img, 1.0/127.5, (300, 300), (127.5, 127.5, 127.5), swapRB=True, crop=False))
+        self.detections = self.cvNet.forward()
+
+    def runObjectTracking(self, className, label):
+        rows = self.img.shape[0]
+        cols = self.img.shape[1]
+        isObjectInPosition = False
+        for detection in self.detections[0,0,:,:]:
+            score = float(detection[2])
+            class_id = int(detection[1])
+            if score > self.scoreThreshold and className == self.netModel['classNames'][class_id]:
+                xRight = int(detection[5] * cols)
+                yBottom = int(detection[6] * rows)
+                marginLeft = int(detection[3] * cols) # xLeft
+                marginRight = cols - xRight # cols - xRight
+                marginTop = int(detection[4] * rows) # yTop
+                marginBottom = rows - yBottom # rows - yBottom
+                xMarginDiff = abs(marginLeft - marginRight)
+                yMarginDiff = abs(marginTop - marginBottom)
+                isObjectInPosition = (xMarginDiff < self.trackingThreshold and yMarginDiff < self.trackingThreshold)
+                boxColor = (0, 255, 0) if isObjectInPosition else (0, 0, 255)
+                cv.rectangle(self.img, (marginLeft, marginTop), (xRight, yBottom), boxColor, thickness=6)
+                # cv.putText(self.img, str(xLeft) + ' ' + str(xRight) + ' ' + str(yTop) + ' ' + str(yBottom), (10,50), cv.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255))
+        if label is not None:
+            xPadding = 20
+            if label == 'YOU WIN!':
+                xPadding = 200
+            cv.putText(self.img, label, (int(cols/2) - xPadding, int(rows/2)), cv.FONT_HERSHEY_SIMPLEX, 3, (255, 0, 0), thickness=7)
+
+        return isObjectInPosition
+
+class KeepItInTheMiddle:
     maxTime = 5
     showResultMaxTime = 3
     startTime = None
@@ -58,45 +80,56 @@ def run_game(netModel, classNameToDetect, scoreThreshold, trackingThreshold):
     startShowResultTime = None
     isObjectFound = False
     isWinning = False
+    classToDetect = ""
 
-    cvNet = cv.dnn.readNetFromTensorflow(netModel['modelPath'], netModel['configPath'])
-    cap = create_capture()
-    while True:
-        _, img = cap.read()
-        cvNet.setInput(cv.dnn.blobFromImage(img, 1.0/127.5, (300, 300), (127.5, 127.5, 127.5), swapRB=True, crop=False))
-        detections = cvNet.forward()
-        # calculate timer and set label
+    objectDetector = None
+
+    def __init__(self, objectDetector, classToDetect):
+        self.objectDetector = objectDetector
+        self.classToDetect = classToDetect
+
+    def runGameStep(self):
+        self.objectDetector.runDetection()
+
         gameLabel = None
-        if isWinning and isObjectFound and startTime is not None:
+        if self.isWinning and self.isObjectFound and self.startTime is not None:
             currentTime = time.time()
-            elapsedTime = currentTime - startTime
-            if showResult and startShowResultTime is not None:
+            elapsedTime = currentTime - self.startTime
+            if self.showResult and self.startShowResultTime is not None:
                 gameLabel = _winGameText
                 currentShowResultTime = time.time()
-                elapsedShowResultTime = currentShowResultTime - startShowResultTime
-                if elapsedShowResultTime > showResultMaxTime:
+                elapsedShowResultTime = currentShowResultTime - self.startShowResultTime
+                if elapsedShowResultTime > self.showResultMaxTime:
                     # reset game
-                    startShowResultTime = None
-                    startTime = None
-                    showResult = False
-                    isWinning = False
-                    isObjectFound = False
+                    self.startShowResultTime = None
+                    self.startTime = None
+                    self.showResult = False
+                    self.isWinning = False
+                    self.isObjectFound = False
                     gameLabel = None
             else:
-                if elapsedTime > maxTime:
-                    startShowResultTime = time.time()
-                    showResult = True
+                if elapsedTime > self.maxTime:
+                    self.startShowResultTime = time.time()
+                    self.showResult = True
                     gameLabel = _winGameText
                 else:
                     gameLabel = str(int(elapsedTime)) if elapsedTime >= 1 else None
-        elif isWinning and not isObjectFound:
-            isWinning = False
-            startTime = None
-        elif not isWinning and isObjectFound:
-            startTime = time.time()
-            isWinning = True
+        elif self.isWinning and not self.isObjectFound:
+            self.isWinning = False
+            self.startTime = None
+        elif not self.isWinning and self.isObjectFound:
+            self.startTime = time.time()
+            self.isWinning = True
 
-        isObjectFound = track_object(img, detections[0,0,:,:], scoreThreshold, netModel['classNames'], classNameToDetect, trackingThreshold, gameLabel)
+        self.isObjectFound = self.objectDetector.runObjectTracking(self.classToDetect, gameLabel)
+
+        return self.objectDetector.getImage()
+        
+def run_game(netModel, classToDetect, scoreThreshold, trackingThreshold):
+    objectDetector = ObjectDetector(netModel, scoreThreshold, trackingThreshold)
+    game = KeepItInTheMiddle(objectDetector, classToDetect)
+    while True:
+        img = game.runGameStep()
         cv.imshow('Speed Reflex Game', img)
         ch = cv.waitKey(1)
         if ch == 27:
@@ -109,4 +142,14 @@ if __name__ == '__main__':
     scoreThreshold = 0.3
     trackingThreshold = 50
     detectClassName = "red ball"
-    run_game(netModels[netModelIdx], detectClassName, scoreThreshold, trackingThreshold)
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("objective", type=int, help="The game objective to play:\n \
+        1 - Keep It In The Middle\n \
+        2 - Keep It In The Spot")
+    args = parser.parse_args()
+
+    if args.objective > 2 or args.objective < 1:
+        print("That objective doesn't exist")
+    else:
+        run_game(netModels[netModelIdx], detectClassName, scoreThreshold, trackingThreshold)
