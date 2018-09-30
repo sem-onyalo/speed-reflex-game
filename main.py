@@ -88,6 +88,9 @@ class KeepItInTheMiddle:
         self.objectDetector = objectDetector
         self.classToDetect = classToDetect
 
+    def runGameCalibration(self):
+        return None
+        
     def runGameStep(self):
         self.objectDetector.runDetection()
 
@@ -124,18 +127,24 @@ class KeepItInTheMiddle:
         self.isObjectFound = self.objectDetector.runObjectTracking(self.classToDetect, gameLabel)
 
         return self.objectDetector.getImage()
-        
-def run_game(netModel, classToDetect, scoreThreshold, trackingThreshold):
+
+class KeepItInTheSpot:
+    def runGameCalibration(self):
+        return None
+
+    def runGameStep(self):
+        return None
+
+def initGame(netModel, classToDetect, scoreThreshold, trackingThreshold, gameId):
     objectDetector = ObjectDetector(netModel, scoreThreshold, trackingThreshold)
-    game = KeepItInTheMiddle(objectDetector, classToDetect)
-    while True:
-        img = game.runGameStep()
-        cv.imshow('Speed Reflex Game', img)
-        ch = cv.waitKey(1)
-        if ch == 27:
-            break
-    print('exiting...')
-    cv.destroyAllWindows()
+    game = None
+    if gameId == 1:
+        game = KeepItInTheMiddle(objectDetector, classToDetect)
+    elif gameId == 2:
+        print('That game is not ready yet')
+    else:
+        print('That is not a valid game')
+    return game
 
 if __name__ == '__main__':
     netModelIdx = 0
@@ -144,12 +153,22 @@ if __name__ == '__main__':
     detectClassName = "red ball"
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("objective", type=int, help="The game objective to play:\n \
-        1 - Keep It In The Middle\n \
+    parser.add_argument("objective", type=int, help="The game objective to play: \
+        1 - Keep It In The Middle \
         2 - Keep It In The Spot")
     args = parser.parse_args()
 
-    if args.objective > 2 or args.objective < 1:
-        print("That objective doesn't exist")
-    else:
-        run_game(netModels[netModelIdx], detectClassName, scoreThreshold, trackingThreshold)
+    game = initGame(netModels[netModelIdx], detectClassName, scoreThreshold, trackingThreshold, args.objective)
+    
+    if game != None:
+        game.runGameCalibration()
+        while True:
+            img = game.runGameStep()
+            cv.imshow('Speed Reflex Game', img)
+            ch = cv.waitKey(1)
+            if ch == 27:
+                break
+
+    print('exiting...')
+    cv.destroyAllWindows()
+    
