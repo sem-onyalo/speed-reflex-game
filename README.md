@@ -15,6 +15,6 @@ pip install dlib
 
 ```
 activate speed-reflex
-python main.py 1 "red ball"
+python main.py
 ```
 
