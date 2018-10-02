@@ -17,7 +17,7 @@ usage: main.py [-h] objective
 positional arguments:
   objective: The game objective to play: 
   1 - Keep It In The Middle 
-  2 - Keep It In The Spot
+  2 - Move It To The Spot
 
 optional arguments:
   -h, --help  show this help message and exit
