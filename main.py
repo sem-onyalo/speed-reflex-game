@@ -2,8 +2,10 @@
 
 import argparse
 import cv2 as cv
+import random
 import time
 
+_gameName = 'Speed Reflex Game'
 _winGameText = 'YOU WIN!'
 
 netModels = [
@@ -22,57 +24,75 @@ class ObjectDetector:
     detections = None
     scoreThreshold = None
     trackingThreshold = None
+    xLeftDetection = None
+    xRightDetection = None
+    yTopDetection = None
+    yBottomDetection = None
+    frameWidth = 0
+    frameHeight = 0
 
     def __init__(self, netModel, scoreThreshold, trackingThreshold):
         self.netModel = netModel
         self.scoreThreshold = scoreThreshold
         self.trackingThreshold = trackingThreshold
         self.cvNet = cv.dnn.readNetFromTensorflow(self.netModel['modelPath'], self.netModel['configPath'])
-        self.cap = self.create_capture()
+        self.create_capture()
 
     def getImage(self):
         return self.img
 
+    def getXCoordDetectionDiff(self):
+        return self.xRightDetection - self.xLeftDetection if self.xRightDetection != None and self.xLeftDetection != None else None
+
+    def getYCoordDetectionDiff(self):
+        return self.yBottomDetection - self.yTopDetection if self.yBottomDetection != None and self.yTopDetection != None else None
+
     def create_capture(self, source = 0):
-        cap = cv.VideoCapture(source)
-        if cap is None or not cap.isOpened():
-            print('Warning: unable to open video source: ', source)
-        return cap
+        self.cap = cv.VideoCapture(source)
+        if self.cap is None or not self.cap.isOpened():
+            raise RuntimeError('Warning: unable to open video source: ', source)
+        self.frameWidth = int(self.cap.get(cv.CAP_PROP_FRAME_WIDTH))
+        self.frameHeight = int(self.cap.get(cv.CAP_PROP_FRAME_HEIGHT))
 
     def runDetection(self):
         _, self.img = self.cap.read()
         self.cvNet.setInput(cv.dnn.blobFromImage(self.img, 1.0/127.5, (300, 300), (127.5, 127.5, 127.5), swapRB=True, crop=False))
         self.detections = self.cvNet.forward()
 
-    def runObjectTracking(self, className, label):
+    def labelDetections(self, className, trackingFunc, boxColorFunc, label=None):
         rows = self.img.shape[0]
         cols = self.img.shape[1]
         isObjectInPosition = False
+        self.xLeftDetection = None
+        self.xRightDetection = None
+        self.yTopDetection = None
+        self.yBottomDetection = None
         for detection in self.detections[0,0,:,:]:
             score = float(detection[2])
             class_id = int(detection[1])
             if score > self.scoreThreshold and className == self.netModel['classNames'][class_id]:
+                xLeft = int(detection[3] * cols) # marginLeft
+                yTop = int(detection[4] * rows) # marginTop
                 xRight = int(detection[5] * cols)
                 yBottom = int(detection[6] * rows)
-                marginLeft = int(detection[3] * cols) # xLeft
-                marginRight = cols - xRight # cols - xRight
-                marginTop = int(detection[4] * rows) # yTop
-                marginBottom = rows - yBottom # rows - yBottom
-                xMarginDiff = abs(marginLeft - marginRight)
-                yMarginDiff = abs(marginTop - marginBottom)
-                isObjectInPosition = (xMarginDiff < self.trackingThreshold and yMarginDiff < self.trackingThreshold)
-                boxColor = (0, 255, 0) if isObjectInPosition else (0, 0, 255)
-                cv.rectangle(self.img, (marginLeft, marginTop), (xRight, yBottom), boxColor, thickness=6)
-                # cv.putText(self.img, str(xLeft) + ' ' + str(xRight) + ' ' + str(yTop) + ' ' + str(yBottom), (10,50), cv.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255))
-        if label is not None:
+                isObjectInPosition = trackingFunc(cols, rows, xLeft, yTop, xRight, yBottom)
+                boxColor = boxColorFunc(cols, rows, xLeft, yTop, xRight, yBottom)
+                cv.rectangle(self.img, (xLeft, yTop), (xRight, yBottom), boxColor, thickness=6)
+                # set detection points
+                self.xLeftDetection = xLeft
+                self.xRightDetection = xRight
+                self.yTopDetection = yTop
+                self.yBottomDetection = yBottom
+        if label != None:
             xPadding = 20
-            if label == 'YOU WIN!':
+            if label == _winGameText:
                 xPadding = 200
             cv.putText(self.img, label, (int(cols/2) - xPadding, int(rows/2)), cv.FONT_HERSHEY_SIMPLEX, 3, (255, 0, 0), thickness=7)
 
         return isObjectInPosition
 
 class KeepItInTheMiddle:
+    trackingThreshold = 50
     maxTime = 5
     showResultMaxTime = 3
     startTime = None
@@ -88,12 +108,7 @@ class KeepItInTheMiddle:
         self.objectDetector = objectDetector
         self.classToDetect = classToDetect
 
-    def runGameCalibration(self):
-        return None
-        
-    def runGameStep(self):
-        self.objectDetector.runDetection()
-
+    def updateGameParams(self):
         gameLabel = None
         if self.isWinning and self.isObjectFound and self.startTime is not None:
             currentTime = time.time()
@@ -123,17 +138,137 @@ class KeepItInTheMiddle:
         elif not self.isWinning and self.isObjectFound:
             self.startTime = time.time()
             self.isWinning = True
-
-        self.isObjectFound = self.objectDetector.runObjectTracking(self.classToDetect, gameLabel)
-
+        return gameLabel
+        
+    def runGameStep(self):
+        self.objectDetector.runDetection()
+        gameLabel = self.updateGameParams()
+        
+        # Name: trackingFunc 
+        # Description: Determines whether the object is in the middle of the screen
+        # Code:
+        # trackingFunc(cols, rows, xLeft, yTop, xRight, yBottom):
+        #   marginRight = cols - xRight
+        #   marginBottom = rows - yBottom
+        #   xMarginDiff = abs(xLeft - marginRight)
+        #   yMarginDiff = abs(yTop - marginBottom)
+        #   isObjectInPosition = (xMarginDiff < self.trackingThreshold and yMarginDiff < self.trackingThreshold)
+        #   return isObjectInPosition
+        trackingFunc = lambda cols, rows, xLeft, yTop, xRight, yBottom : abs(xLeft - (cols - xRight)) < self.trackingThreshold and abs(yTop - (rows - yBottom)) < self.trackingThreshold
+        
+        # Name: boxColorFunc 
+        # Description: Determines what the color of the box around the object should be
+        # Code:
+        # boxColorFunc(cols, rows, xLeft, yTop, xRight, yBottom):
+        #   isObjectInPosition = trackingFunc(cols, rows, xLeft, yTop, xRight, yBottom)
+        #   boxColor = (0, 255, 0) if isObjectInPosition else (0, 0, 255)
+        #   return boxColor
+        boxColorFunc = lambda cols, rows, xLeft, yTop, xRight, yBottom : (0, 255, 0) if trackingFunc(cols, rows, xLeft, yTop, xRight, yBottom) else (0, 0, 255)
+        
+        self.isObjectFound = self.objectDetector.labelDetections(self.classToDetect, trackingFunc, boxColorFunc, gameLabel)
         return self.objectDetector.getImage()
 
 class KeepItInTheSpot:
-    def runGameCalibration(self):
-        return None
+    objectDetector = None
+    classToDetect = ""
+    minObjectSize = None
+    maxObjectSize = None
+    isCalibrated = False
+    calibrationStep = 1
+    calibrationSubStep = 1
+    calibrationStartTime = None
+    calibrationMaxTime = 3
+    changeSpotStartTime = time.time()
+    changeSpotMaxTime = 5
+
+    def __init__(self, objectDetector, classToDetect):
+        self.objectDetector = objectDetector
+        self.classToDetect = classToDetect
+
+    def getRectanglePts(self):
+        size = self.minObjectSize # size = random.randint(self.minObjectSize, self.maxObjectSize)
+        widthPt = random.randint(0, self.objectDetector.frameWidth)
+        heightPt = random.randint(0, self.objectDetector.frameHeight)
+        if widthPt + size > self.objectDetector.frameWidth:
+            xRight = widthPt
+            xLeft = widthPt - size
+        else:
+            xLeft = widthPt
+            xRight = widthPt + size
+        if heightPt + size > self.objectDetector.frameHeight:
+            yBottom = heightPt
+            yTop = heightPt - size
+        else:
+            yTop = heightPt
+            yBottom = heightPt + size
+        rectPt1 = (xLeft, yTop)
+        rectPt2 = (xRight, yBottom)
+        return rectPt1, rectPt2
+
+    def updateCalibrationParams(self):
+        if self.calibrationStep == 1: # calibrate for smallest object size
+            if self.calibrationSubStep == 1:
+                print('Hold object farthest from screen')
+                self.calibrationStartTime = time.time()
+                self.calibrationSubStep = self.calibrationSubStep + 1
+            elif self.calibrationSubStep == 2:
+                currentTime = time.time()
+                if currentTime - self.calibrationStartTime > self.calibrationMaxTime:
+                    xCoordDiff = self.objectDetector.getXCoordDetectionDiff()
+                    yCoordDiff = self.objectDetector.getYCoordDetectionDiff()
+                    if xCoordDiff != None and yCoordDiff != None:
+                        self.minObjectSize = min(int(xCoordDiff), int(yCoordDiff))
+                        print('Min obj size:', self.minObjectSize)
+                        self.calibrationStep = self.calibrationStep + 1
+                        self.calibrationSubStep = 1
+                    else:
+                        raise RuntimeError('Calibration failed at step', self.calibrationStep, self.calibrationSubStep)
+                        
+        elif self.calibrationStep == 2: # calibrate for largest object size
+            if self.calibrationSubStep == 1:
+                print('Hold object closest from screen')
+                self.calibrationStartTime = time.time()
+                self.calibrationSubStep = self.calibrationSubStep + 1
+            elif self.calibrationSubStep == 2:
+                currentTime = time.time()
+                if currentTime - self.calibrationStartTime > self.calibrationMaxTime:
+                    xCoordDiff = self.objectDetector.getXCoordDetectionDiff()
+                    yCoordDiff = self.objectDetector.getYCoordDetectionDiff()
+                    if xCoordDiff != None and yCoordDiff != None:
+                        self.maxObjectSize = min(int(xCoordDiff), int(yCoordDiff))
+                        print('Max obj size:', self.maxObjectSize)
+                        self.calibrationStep = self.calibrationStep + 1
+                        self.calibrationSubStep = 1
+                    else:
+                        raise RuntimeError('Calibration failed at step', self.calibrationStep, self.calibrationSubStep)
+
+        elif self.calibrationStep == 3: # calculate calibration parmas
+            self.calibrationSubStep = 1
+            self.calibrationStep = 1
+            self.isCalibrated = True
+
+    def updateGameParams(self):
+        currentSpotTime = time.time()
+        if currentSpotTime - self.changeSpotStartTime > self.changeSpotMaxTime:
+            self.rectPt1, self.rectPt2 = self.getRectanglePts()
+            self.changeSpotStartTime = time.time()
+        elif self.rectPt1 == None or self.rectPt2 == None:
+            self.rectPt1, self.rectPt2 = self.getRectanglePts()
+        cv.rectangle(self.objectDetector.getImage(), self.rectPt1, self.rectPt2, (0, 255, 255), thickness=6)
 
     def runGameStep(self):
-        return None
+        self.objectDetector.runDetection()
+
+        trackingFunc = lambda cols, rows, xLeft, yTop, xRight, yBottom : False
+        boxColorFunc = lambda cols, rows, xLeft, yTop, xRight, yBottom : (0, 255, 255)
+        self.objectDetector.labelDetections(self.classToDetect, trackingFunc, boxColorFunc)
+        
+        if self.isCalibrated:
+            self.updateGameParams()
+        else:
+            self.updateCalibrationParams()
+
+        return self.objectDetector.getImage()
 
 def initGame(netModel, classToDetect, scoreThreshold, trackingThreshold, gameId):
     objectDetector = ObjectDetector(netModel, scoreThreshold, trackingThreshold)
@@ -141,9 +276,9 @@ def initGame(netModel, classToDetect, scoreThreshold, trackingThreshold, gameId)
     if gameId == 1:
         game = KeepItInTheMiddle(objectDetector, classToDetect)
     elif gameId == 2:
-        print('That game is not ready yet')
+        game = KeepItInTheSpot(objectDetector, classToDetect)
     else:
-        print('That is not a valid game')
+        print('That is not a valid game objective')
     return game
 
 if __name__ == '__main__':
@@ -161,10 +296,9 @@ if __name__ == '__main__':
     game = initGame(netModels[netModelIdx], detectClassName, scoreThreshold, trackingThreshold, args.objective)
     
     if game != None:
-        game.runGameCalibration()
         while True:
             img = game.runGameStep()
-            cv.imshow('Speed Reflex Game', img)
+            cv.imshow(_gameName, img)
             ch = cv.waitKey(1)
             if ch == 27:
                 break
