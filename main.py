@@ -160,6 +160,9 @@ class KeepItInTheMiddle:
 class MoveItToTheSpot:
     trackingThreshold = 20
     isObjectInPosition = False
+    showResult = False
+    showResultStartTime = None
+    showResultMaxTime = 2
     objectDetector = None
     classToDetect = ""
     minObjectSize = None
@@ -242,13 +245,22 @@ class MoveItToTheSpot:
             self.isCalibrated = True
 
     def updateGameParams(self):
+        boxColor = (0, 255, 255)
         if self.rectPt1 == None or self.rectPt2 == None:
             self.rectPt1, self.rectPt2 = self.getRectanglePts()
+        elif self.showResult:
+            boxColor = (0, 255, 0)
+            currentTime = time.time()
+            if currentTime - self.showResultStartTime > self.showResultMaxTime:
+                self.rectPt1, self.rectPt2 = self.getRectanglePts() # new position
+                self.showResult = False
         elif self.isObjectInPosition:
-            self.rectPt1, self.rectPt2 = self.getRectanglePts()
+            boxColor = (0, 255, 0)
             self.isObjectInPosition = False
+            self.showResult = True
+            self.showResultStartTime = time.time()
 
-        cv.rectangle(self.objectDetector.getImage(), self.rectPt1, self.rectPt2, (0, 255, 255), thickness=6)
+        cv.rectangle(self.objectDetector.getImage(), self.rectPt1, self.rectPt2, boxColor, thickness=6)
 
     def runGameStep(self):
         self.objectDetector.runDetection()
