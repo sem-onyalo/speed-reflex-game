@@ -2,8 +2,11 @@
 
 import argparse
 import cv2 as cv
+import pyaudio
 import random
+import threading
 import time
+import wave
 
 _gameName = 'Speed Reflex Game'
 _winGameText = 'YOU WIN!'
@@ -17,6 +20,38 @@ netModels = [
         }
     }
 ]
+
+class AudioHelper:
+    audioFiles = {
+        "ballInPos": "audio/220184__gameaudio__win-spacey.wav"
+    }
+    audioStatus = {
+        "ballInPos": False
+    }
+
+    def _playAudio(self, audioName):
+        self.audioStatus[audioName] = True
+        wf = wave.open(self.audioFiles[audioName], 'rb')
+        pa = pyaudio.PyAudio()
+        stream = pa.open(format = pa.get_format_from_width(wf.getsampwidth()),
+                        channels = wf.getnchannels(),
+                        rate = wf.getframerate(),
+                        output = True)
+
+        chunk = 1024
+        data = wf.readframes(chunk)
+        while len(data) > 0:
+            stream.write(data)
+            data = wf.readframes(chunk)
+
+        stream.stop_stream()
+        stream.close()
+        pa.terminate()
+        self.audioStatus[audioName] = False
+
+    def playAudio(self, name):
+        playAudioThread = threading.Thread(target=self._playAudio, args=[name])
+        playAudioThread.start()
 
 class ObjectDetector:
     imgMargin = 60
@@ -98,9 +133,9 @@ class KeepItInTheMiddle:
     startShowResultTime = None
     isObjectInPosition = False
     isWinning = False
-    classToDetect = ""
 
     objectDetector = None
+    classToDetect = ""
 
     def __init__(self, objectDetector, classToDetect):
         self.objectDetector = objectDetector
@@ -161,10 +196,6 @@ class MoveItToTheSpot:
     trackingThreshold = 20
     isObjectInPosition = False
     showResult = False
-    showResultStartTime = None
-    showResultMaxTime = 2
-    objectDetector = None
-    classToDetect = ""
     minObjectSize = None
     maxObjectSize = None
     isCalibrated = False
@@ -174,10 +205,15 @@ class MoveItToTheSpot:
     calibrationMaxTime = 3
     rectPt1 = None
     rectPt2 = None
+    audioHelper = None
+
+    objectDetector = None
+    classToDetect = ""
 
     def __init__(self, objectDetector, classToDetect):
         self.objectDetector = objectDetector
         self.classToDetect = classToDetect
+        self.audioHelper = AudioHelper()
 
     def getRectanglePts(self):
         maxWidth = self.objectDetector.frameWidth
@@ -245,20 +281,20 @@ class MoveItToTheSpot:
             self.isCalibrated = True
 
     def updateGameParams(self):
+        audioNameBallInPos = "ballInPos"
         boxColor = (0, 255, 255)
         if self.rectPt1 == None or self.rectPt2 == None:
             self.rectPt1, self.rectPt2 = self.getRectanglePts()
         elif self.showResult:
             boxColor = (0, 255, 0)
-            currentTime = time.time()
-            if currentTime - self.showResultStartTime > self.showResultMaxTime:
-                self.rectPt1, self.rectPt2 = self.getRectanglePts() # new position
+            if not self.audioHelper.audioStatus[audioNameBallInPos]:
+                self.rectPt1, self.rectPt2 = self.getRectanglePts()
                 self.showResult = False
         elif self.isObjectInPosition:
             boxColor = (0, 255, 0)
             self.isObjectInPosition = False
+            self.audioHelper.playAudio(audioNameBallInPos)
             self.showResult = True
-            self.showResultStartTime = time.time()
 
         cv.rectangle(self.objectDetector.getImage(), self.rectPt1, self.rectPt2, boxColor, thickness=6)
 
@@ -289,14 +325,13 @@ class MoveItToTheSpot:
 
 def initGame(netModel, classToDetect, scoreThreshold, trackingThreshold, gameId):
     objectDetector = ObjectDetector(netModel, scoreThreshold, trackingThreshold)
-    game = None
+    
     if gameId == 1:
-        game = KeepItInTheMiddle(objectDetector, classToDetect)
+        return KeepItInTheMiddle(objectDetector, classToDetect)
     elif gameId == 2:
-        game = MoveItToTheSpot(objectDetector, classToDetect)
+        return MoveItToTheSpot(objectDetector, classToDetect)
     else:
         print('That is not a valid game objective')
-    return game
 
 if __name__ == '__main__':
     netModelIdx = 0

@@ -29,3 +29,8 @@ activate speed-reflex
 python main.py 1
 ```
 
+## Credits
+
+1. [GameAudio - Win Spacey][1]
+
+[1]: https://freesound.org/people/GameAudio/sounds/220184/
