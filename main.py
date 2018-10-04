@@ -2,6 +2,7 @@
 
 import argparse
 import cv2 as cv
+import datetime
 import pyaudio
 import random
 import threading
@@ -215,6 +216,7 @@ class MoveItToTheSpot:
     repShowResultStartTime = None
     repShowResultMaxTime = 7
     winLevel = False
+    winLevelElapsedTime = 0
     audioHelper = None
 
     objectDetector = None
@@ -247,6 +249,11 @@ class MoveItToTheSpot:
         rectPt1 = (xLeft, yTop)
         rectPt2 = (xRight, yBottom)
         return rectPt1, rectPt2
+    
+    def getElapsedTimeStr(self, elapsedTime):
+        elapsedTimeStr = str(datetime.timedelta(seconds=elapsedTime))
+        elapsedTimeStr = elapsedTimeStr[(elapsedTimeStr.index(':') + 1):]
+        return elapsedTimeStr
 
     def updateCalibrationParams(self):
         if self.calibrationStep == 1: # calibrate for smallest object size
@@ -296,15 +303,20 @@ class MoveItToTheSpot:
         textSize = 1.5
         textThickness = 3
         textFont = cv.FONT_HERSHEY_SIMPLEX
+        elapsedTime = int(time.time() - self.repStartTime) if self.repStartTime != None else 0
+        elapsedTimeStr = self.getElapsedTimeStr(elapsedTime)
         if self.rectPt1 == None or self.rectPt2 == None: # initial state, on first run
             self.repStartTime = time.time()
             self.rectPt1, self.rectPt2 = self.getRectanglePts()
         elif self.showResult:
             boxColor = (0, 255, 0)
             if self.winLevel:
+                elapsedTime = self.winLevelElapsedTime
+                elapsedTimeStr = self.getElapsedTimeStr(elapsedTime)
                 if not self.audioHelper.audioStatus[_winLevelAudioKey]:
                     self.rectPt1, self.rectPt2 = self.getRectanglePts()
                     self.repStartTime = time.time()
+                    self.winLevelElapsedTime = 0
                     self.showResult = False
                     self.winLevel = False
                     self.currentRep = 0
@@ -318,13 +330,14 @@ class MoveItToTheSpot:
             self.showResult = True
             if self.currentRep == self.maxRep:
                 self.winLevel = True
+                self.winLevelElapsedTime = elapsedTime
                 self.audioHelper.playAudio(_winLevelAudioKey)
             else:
                 self.audioHelper.playAudio(_winItemAudioKey)
 
         cv.rectangle(self.objectDetector.getImage(), self.rectPt1, self.rectPt2, boxColor, thickness=6)
         cv.putText(self.objectDetector.getImage(), str(self.currentRep) + '/' + str(self.maxRep), (self.objectDetector.frameWidth - 150, 100), textFont, textSize, textColor, textThickness, lineType=cv.LINE_AA)
-        cv.putText(self.objectDetector.getImage(), str(int(time.time() - self.repStartTime)) + 's', (50, 100), textFont, textSize, textColor, textThickness, lineType=cv.LINE_AA)
+        cv.putText(self.objectDetector.getImage(), elapsedTimeStr, (20, 100), textFont, textSize, textColor, textThickness, lineType=cv.LINE_AA)
 
     def runGameStep(self):
         self.objectDetector.runDetection()
