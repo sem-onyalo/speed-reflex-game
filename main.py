@@ -10,6 +10,8 @@ import wave
 
 _gameName = 'Speed Reflex Game'
 _winGameText = 'YOU WIN!'
+_winItemAudioKey = "winItem"
+_winLevelAudioKey = "winLevel"
 
 netModels = [
     {
@@ -23,10 +25,12 @@ netModels = [
 
 class AudioHelper:
     audioFiles = {
-        "ballInPos": "audio/220184__gameaudio__win-spacey.wav"
+        "winItem": "audio/220184__gameaudio__win-spacey.wav",
+        "winLevel": "audio/258142__tuudurt__level-win.wav"
     }
     audioStatus = {
-        "ballInPos": False
+        "winItem": False,
+        "winLevel": False
     }
 
     def _playAudio(self, audioName):
@@ -205,6 +209,12 @@ class MoveItToTheSpot:
     calibrationMaxTime = 3
     rectPt1 = None
     rectPt2 = None
+    currentRep = 0
+    maxRep = 5
+    repStartTime = None
+    repShowResultStartTime = None
+    repShowResultMaxTime = 7
+    winLevel = False
     audioHelper = None
 
     objectDetector = None
@@ -281,22 +291,40 @@ class MoveItToTheSpot:
             self.isCalibrated = True
 
     def updateGameParams(self):
-        audioNameBallInPos = "ballInPos"
         boxColor = (0, 255, 255)
-        if self.rectPt1 == None or self.rectPt2 == None:
+        textColor = (255, 0, 0)
+        textSize = 1.5
+        textThickness = 3
+        textFont = cv.FONT_HERSHEY_SIMPLEX
+        if self.rectPt1 == None or self.rectPt2 == None: # initial state, on first run
+            self.repStartTime = time.time()
             self.rectPt1, self.rectPt2 = self.getRectanglePts()
         elif self.showResult:
             boxColor = (0, 255, 0)
-            if not self.audioHelper.audioStatus[audioNameBallInPos]:
+            if self.winLevel:
+                if not self.audioHelper.audioStatus[_winLevelAudioKey]:
+                    self.rectPt1, self.rectPt2 = self.getRectanglePts()
+                    self.repStartTime = time.time()
+                    self.showResult = False
+                    self.winLevel = False
+                    self.currentRep = 0
+            elif not self.audioHelper.audioStatus[_winItemAudioKey]:
                 self.rectPt1, self.rectPt2 = self.getRectanglePts()
                 self.showResult = False
         elif self.isObjectInPosition:
             boxColor = (0, 255, 0)
+            self.currentRep = self.currentRep + 1
             self.isObjectInPosition = False
-            self.audioHelper.playAudio(audioNameBallInPos)
             self.showResult = True
+            if self.currentRep == self.maxRep:
+                self.winLevel = True
+                self.audioHelper.playAudio(_winLevelAudioKey)
+            else:
+                self.audioHelper.playAudio(_winItemAudioKey)
 
         cv.rectangle(self.objectDetector.getImage(), self.rectPt1, self.rectPt2, boxColor, thickness=6)
+        cv.putText(self.objectDetector.getImage(), str(self.currentRep) + '/' + str(self.maxRep), (self.objectDetector.frameWidth - 150, 100), textFont, textSize, textColor, textThickness, lineType=cv.LINE_AA)
+        cv.putText(self.objectDetector.getImage(), str(int(time.time() - self.repStartTime)) + 's', (50, 100), textFont, textSize, textColor, textThickness, lineType=cv.LINE_AA)
 
     def runGameStep(self):
         self.objectDetector.runDetection()

@@ -32,5 +32,7 @@ python main.py 1
 ## Credits
 
 1. [GameAudio - Win Spacey][1]
+2. [Tuudurt - Level win][2]
 
 [1]: https://freesound.org/people/GameAudio/sounds/220184/
+[2]: https://freesound.org/people/Tuudurt/sounds/258142/
