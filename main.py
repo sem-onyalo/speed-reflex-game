@@ -362,7 +362,9 @@ class MoveItToTheSpot:
         cv.putText(self.objectDetector.getImage(), elapsedTimeStr, (20, 100), textFont, textSize, textColor, textThickness, lineType=cv.LINE_AA)
         if not self.winLevel:
             cv.rectangle(self.objectDetector.getImage(), self.rectPt1, self.rectPt2, boxColor, thickness=6)
-            
+        else:
+            cv.putText(self.objectDetector.getImage(), elapsedTimeStr, (150, 270), textFont, 4, textColor, 8, lineType=cv.LINE_AA)
+
         return labelDetections
 
     def runGameStep(self):
