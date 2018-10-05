@@ -211,7 +211,7 @@ class MoveItToTheSpot:
     rectPt1 = None
     rectPt2 = None
     currentRep = 0
-    maxRep = 5
+    maxRep = 10
     repStartTime = None
     repShowResultStartTime = None
     repShowResultMaxTime = 7
@@ -300,7 +300,7 @@ class MoveItToTheSpot:
     def updateGameParams(self):
         labelDetections = True
         boxColor = (0, 255, 255)
-        textColor = (255, 0, 0)
+        textColor = (255, 255, 255)
         textSize = 1.5
         textThickness = 3
         textFont = cv.FONT_HERSHEY_SIMPLEX
@@ -340,9 +340,12 @@ class MoveItToTheSpot:
                 self.audioHelper.playAudio(_winLevelAudioKey)
             else:
                 self.audioHelper.playAudio(_winItemAudioKey)
-
+        
+        progressDisplayOffset = 175 if self.currentRep < 10 else 200
         cv.rectangle(self.objectDetector.getImage(), self.rectPt1, self.rectPt2, boxColor, thickness=6)
-        cv.putText(self.objectDetector.getImage(), str(self.currentRep) + '/' + str(self.maxRep), (self.objectDetector.frameWidth - 150, 100), textFont, textSize, textColor, textThickness, lineType=cv.LINE_AA)
+        cv.putText(self.objectDetector.getImage(), 'PROGRESS', (self.objectDetector.frameWidth - 200, 50), textFont, 1, textColor, 2, lineType=cv.LINE_AA)
+        cv.putText(self.objectDetector.getImage(), str(self.currentRep) + '/' + str(self.maxRep), (self.objectDetector.frameWidth - progressDisplayOffset, 100), textFont, textSize, textColor, textThickness, lineType=cv.LINE_AA)
+        cv.putText(self.objectDetector.getImage(), 'TIME', (50, 50), textFont, 1, textColor, 2, lineType=cv.LINE_AA)
         cv.putText(self.objectDetector.getImage(), elapsedTimeStr, (20, 100), textFont, textSize, textColor, textThickness, lineType=cv.LINE_AA)
         return labelDetections
 
