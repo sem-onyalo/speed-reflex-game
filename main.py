@@ -213,14 +213,16 @@ class MoveItToTheSpot:
     currentRep = 0
     maxRep = 10
     repStartTime = None
-    repShowResultStartTime = None
-    repShowResultMaxTime = 7
     winLevel = False
     winLevelElapsedTime = 0
     audioHelper = None
 
     objectDetector = None
     classToDetect = ""
+
+    # Temporary vars. Can remove once menu options are added to play and play again
+    showResultStartTime = None
+    showResultMaxTime = 5
 
     def __init__(self, objectDetector, classToDetect):
         self.objectDetector = objectDetector
@@ -315,12 +317,24 @@ class MoveItToTheSpot:
                 elapsedTime = self.winLevelElapsedTime
                 elapsedTimeStr = self.getElapsedTimeStr(elapsedTime)
                 if not self.audioHelper.audioStatus[_winLevelAudioKey]:
-                    self.rectPt1, self.rectPt2 = self.getRectanglePts()
-                    self.repStartTime = time.time()
-                    self.winLevelElapsedTime = 0
-                    self.showResult = False
-                    self.winLevel = False
-                    self.currentRep = 0
+                    # ---------- Start: Code for temp show result vars ----------
+                    if self.showResultStartTime == None:
+                        self.showResultStartTime = time.time()
+                        labelDetections = False
+                    else:
+                        currentTime = time.time()
+                        if currentTime - self.showResultStartTime > self.showResultMaxTime:
+                            self.showResultStartTime = None
+                            # ---------- End: Code for temp show result vars ----------
+                            # reset game vars
+                            self.rectPt1, self.rectPt2 = self.getRectanglePts()
+                            self.repStartTime = time.time()
+                            self.winLevelElapsedTime = 0
+                            self.showResult = False
+                            self.winLevel = False
+                            self.currentRep = 0
+                        else:
+                            labelDetections = False
                 else:
                     labelDetections = False
             elif not self.audioHelper.audioStatus[_winItemAudioKey]:
@@ -342,11 +356,13 @@ class MoveItToTheSpot:
                 self.audioHelper.playAudio(_winItemAudioKey)
         
         progressDisplayOffset = 175 if self.currentRep < 10 else 200
-        cv.rectangle(self.objectDetector.getImage(), self.rectPt1, self.rectPt2, boxColor, thickness=6)
         cv.putText(self.objectDetector.getImage(), 'PROGRESS', (self.objectDetector.frameWidth - 200, 50), textFont, 1, textColor, 2, lineType=cv.LINE_AA)
         cv.putText(self.objectDetector.getImage(), str(self.currentRep) + '/' + str(self.maxRep), (self.objectDetector.frameWidth - progressDisplayOffset, 100), textFont, textSize, textColor, textThickness, lineType=cv.LINE_AA)
         cv.putText(self.objectDetector.getImage(), 'TIME', (50, 50), textFont, 1, textColor, 2, lineType=cv.LINE_AA)
         cv.putText(self.objectDetector.getImage(), elapsedTimeStr, (20, 100), textFont, textSize, textColor, textThickness, lineType=cv.LINE_AA)
+        if not self.winLevel:
+            cv.rectangle(self.objectDetector.getImage(), self.rectPt1, self.rectPt2, boxColor, thickness=6)
+            
         return labelDetections
 
     def runGameStep(self):
