@@ -298,6 +298,7 @@ class MoveItToTheSpot:
             self.isCalibrated = True
 
     def updateGameParams(self):
+        labelDetections = True
         boxColor = (0, 255, 255)
         textColor = (255, 0, 0)
         textSize = 1.5
@@ -320,11 +321,16 @@ class MoveItToTheSpot:
                     self.showResult = False
                     self.winLevel = False
                     self.currentRep = 0
+                else:
+                    labelDetections = False
             elif not self.audioHelper.audioStatus[_winItemAudioKey]:
                 self.rectPt1, self.rectPt2 = self.getRectanglePts()
                 self.showResult = False
+            else:
+                labelDetections = False
         elif self.isObjectInPosition:
             boxColor = (0, 255, 0)
+            labelDetections = False
             self.currentRep = self.currentRep + 1
             self.isObjectInPosition = False
             self.showResult = True
@@ -338,12 +344,14 @@ class MoveItToTheSpot:
         cv.rectangle(self.objectDetector.getImage(), self.rectPt1, self.rectPt2, boxColor, thickness=6)
         cv.putText(self.objectDetector.getImage(), str(self.currentRep) + '/' + str(self.maxRep), (self.objectDetector.frameWidth - 150, 100), textFont, textSize, textColor, textThickness, lineType=cv.LINE_AA)
         cv.putText(self.objectDetector.getImage(), elapsedTimeStr, (20, 100), textFont, textSize, textColor, textThickness, lineType=cv.LINE_AA)
+        return labelDetections
 
     def runGameStep(self):
+        labelDetections = True
         self.objectDetector.runDetection()
 
         if self.isCalibrated:
-            self.updateGameParams()
+            labelDetections = self.updateGameParams()
 
             # Name: trackingFunc 
             # Description: Determines whether the object is in the predetermined random spot
@@ -360,7 +368,8 @@ class MoveItToTheSpot:
             self.updateCalibrationParams()
             trackingFunc = lambda cols, rows, xLeft, yTop, xRight, yBottom : False
         
-        self.isObjectInPosition = self.objectDetector.labelDetections(self.classToDetect, trackingFunc)
+        if labelDetections:
+            self.isObjectInPosition = self.objectDetector.labelDetections(self.classToDetect, trackingFunc)
         
         return self.objectDetector.getImage()
 
