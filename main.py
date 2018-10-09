@@ -96,7 +96,8 @@ class ObjectDetector:
         self.frameHeight = int(self.cap.get(cv.CAP_PROP_FRAME_HEIGHT))
 
     def runDetection(self):
-        _, self.img = self.cap.read()
+        _, img = self.cap.read()
+        self.img = cv.flip(img, 1)
         self.cvNet.setInput(cv.dnn.blobFromImage(self.img, 1.0/127.5, (300, 300), (127.5, 127.5, 127.5), swapRB=True, crop=False))
         self.detections = self.cvNet.forward()
 
@@ -302,7 +303,8 @@ class MoveItToTheSpot:
     def updateGameParams(self):
         labelDetections = True
         boxColor = (0, 255, 255)
-        textColor = (255, 255, 255)
+        # textColor = (153, 103, 73)
+        textColor = (114, 70, 20)
         textSize = 1.5
         textThickness = 3
         textFont = cv.FONT_HERSHEY_SIMPLEX
@@ -356,14 +358,14 @@ class MoveItToTheSpot:
                 self.audioHelper.playAudio(_winItemAudioKey)
         
         progressDisplayOffset = 175 if self.currentRep < 10 else 200
-        cv.putText(self.objectDetector.getImage(), 'PROGRESS', (self.objectDetector.frameWidth - 200, 50), textFont, 1, textColor, 2, lineType=cv.LINE_AA)
-        cv.putText(self.objectDetector.getImage(), str(self.currentRep) + '/' + str(self.maxRep), (self.objectDetector.frameWidth - progressDisplayOffset, 100), textFont, textSize, textColor, textThickness, lineType=cv.LINE_AA)
-        cv.putText(self.objectDetector.getImage(), 'TIME', (50, 50), textFont, 1, textColor, 2, lineType=cv.LINE_AA)
-        cv.putText(self.objectDetector.getImage(), elapsedTimeStr, (20, 100), textFont, textSize, textColor, textThickness, lineType=cv.LINE_AA)
+        cv.putText(self.objectDetector.getImage(), 'PROGRESS', (self.objectDetector.frameWidth - 200, 90), textFont, 1, textColor, 2, lineType=cv.LINE_AA)
+        cv.putText(self.objectDetector.getImage(), str(self.currentRep) + '/' + str(self.maxRep), (self.objectDetector.frameWidth - progressDisplayOffset, 140), textFont, textSize, textColor, textThickness, lineType=cv.LINE_AA)
+        cv.putText(self.objectDetector.getImage(), 'TIME', (50, 90), textFont, 1, textColor, 2, lineType=cv.LINE_AA)
+        cv.putText(self.objectDetector.getImage(), elapsedTimeStr, (20, 140), textFont, textSize, textColor, textThickness, lineType=cv.LINE_AA)
         if not self.winLevel:
             cv.rectangle(self.objectDetector.getImage(), self.rectPt1, self.rectPt2, boxColor, thickness=6)
         else:
-            cv.putText(self.objectDetector.getImage(), elapsedTimeStr, (150, 270), textFont, 4, textColor, 8, lineType=cv.LINE_AA)
+            cv.putText(self.objectDetector.getImage(), elapsedTimeStr, (150, 270), textFont, 4, (0,255,255), 8, lineType=cv.LINE_AA)
 
         return labelDetections
 
