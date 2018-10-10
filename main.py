@@ -97,9 +97,12 @@ class ObjectDetector:
         self.frameWidth = int(self.cap.get(cv.CAP_PROP_FRAME_WIDTH))
         self.frameHeight = int(self.cap.get(cv.CAP_PROP_FRAME_HEIGHT))
 
-    def runDetection(self):
+    def readNewFrame(self):
         _, img = self.cap.read()
         self.img = cv.flip(img, 1)
+
+    def runDetection(self):
+        self.readNewFrame()
         self.cvNet.setInput(cv.dnn.blobFromImage(self.img, 1.0/127.5, (300, 300), (127.5, 127.5, 127.5), swapRB=True, crop=False))
         self.detections = self.cvNet.forward()
 
@@ -214,11 +217,14 @@ class MoveItToTheSpot:
     rectPt1 = None
     rectPt2 = None
     currentRep = 0
-    maxRep = 10
+    maxRep = 3
     repStartTime = None
     winLevel = False
     winLevelElapsedTime = 0
     audioHelper = None
+    countdownStartTime = None
+    countdownMaxTime = 3
+    newGame = False
 
     objectDetector = None
     classToDetect = ""
@@ -231,6 +237,7 @@ class MoveItToTheSpot:
         self.objectDetector = objectDetector
         self.classToDetect = classToDetect
         self.audioHelper = AudioHelper()
+        self.newGame = True
 
     def getRectanglePts(self):
         maxWidth = self.objectDetector.frameWidth
@@ -273,34 +280,16 @@ class MoveItToTheSpot:
                     yCoordDiff = self.objectDetector.getYCoordDetectionDiff()
                     if xCoordDiff != None and yCoordDiff != None:
                         self.minObjectSize = min(int(xCoordDiff), int(yCoordDiff))
-                        print('Min obj size:', self.minObjectSize)
                         self.calibrationStep = self.calibrationStep + 1
                         self.calibrationSubStep = 1
                     else:
                         raise RuntimeError('Calibration failed at step', self.calibrationStep, self.calibrationSubStep)
-                        
-        # elif self.calibrationStep == 2: # calibrate for largest object size
-        #     if self.calibrationSubStep == 1:
-        #         print('Hold object closest from screen')
-        #         self.calibrationStartTime = time.time()
-        #         self.calibrationSubStep = self.calibrationSubStep + 1
-        #     elif self.calibrationSubStep == 2:
-        #         currentTime = time.time()
-        #         if currentTime - self.calibrationStartTime > self.calibrationMaxTime:
-        #             xCoordDiff = self.objectDetector.getXCoordDetectionDiff()
-        #             yCoordDiff = self.objectDetector.getYCoordDetectionDiff()
-        #             if xCoordDiff != None and yCoordDiff != None:
-        #                 self.maxObjectSize = min(int(xCoordDiff), int(yCoordDiff))
-        #                 print('Max obj size:', self.maxObjectSize)
-        #                 self.calibrationStep = self.calibrationStep + 1
-        #                 self.calibrationSubStep = 1
-        #             else:
-        #                 raise RuntimeError('Calibration failed at step', self.calibrationStep, self.calibrationSubStep)
 
         elif self.calibrationStep == 2: # calculate calibration parmas
             self.calibrationSubStep = 1
             self.calibrationStep = 1
             self.isCalibrated = True
+            print('Calibration complete!')
 
     def updateGameParams(self):
         labelDetections = True
@@ -330,6 +319,9 @@ class MoveItToTheSpot:
                         if currentTime - self.showResultStartTime > self.showResultMaxTime:
                             self.showResultStartTime = None
                             # ---------- End: Code for temp show result vars ----------
+                            # ---------- Start: Code for temp starting new game ----------
+                            self.newGame = True # game to be started by menu choice
+                            # ---------- End: Code for temp starting new game ----------
                             # reset game vars
                             self.rectPt1, self.rectPt2 = self.getRectanglePts()
                             self.repStartTime = time.time()
@@ -371,30 +363,48 @@ class MoveItToTheSpot:
 
         return labelDetections
 
-    def runGameStep(self):
-        labelDetections = True
-        self.objectDetector.runDetection()
-
-        if self.isCalibrated:
-            labelDetections = self.updateGameParams()
-
-            # Name: trackingFunc 
-            # Description: Determines whether the object is in the predetermined random spot
-            # Code:
-            # trackingFunc(cols, rows, xLeft, yTop, xRight, yBottom):
-            #   xLeftDiff = abs(xLeft - self.objectDetector.xLeftPos)
-            #   yTopDiff = abs(yTop - self.objectDetector.yTopPos)
-            #   xRightDiff = abs(xRight - self.objectDetector.xRightPos)
-            #   yBottomDiff = abs(yBottom - self.objectDetector.yBottomPos)
-            #   isObjectInPosition = xLeftDiff < self.trackingThreshold and yTopDiff < self.trackingThreshold and xRightDiff < self.trackingThreshold and yBottomDiff < self.trackingThreshold
-            #   return isObjectInPosition
-            trackingFunc = lambda cols, rows, xLeft, yTop, xRight, yBottom : abs(xLeft - self.rectPt1[0]) < self.trackingThreshold and abs(yTop - self.rectPt1[1]) < self.trackingThreshold and abs(xRight - self.rectPt2[0]) < self.trackingThreshold and abs(yBottom - self.rectPt2[1]) < self.trackingThreshold
+    def runGameCountdown(self):
+        if self.countdownStartTime == None:
+            self.countdownStartTime = time.time()
+            countdownStr = str(self.countdownMaxTime)
         else:
+            currentTime = time.time()
+            if currentTime - self.countdownStartTime > self.countdownMaxTime:
+                countdownStr = 'GO'
+                self.newGame = False
+                self.countdownStartTime = None
+            else:
+                countdownStr = str(self.countdownMaxTime - int(currentTime - self.countdownStartTime))
+        cv.putText(self.objectDetector.getImage(), countdownStr, (250, 270), cv.FONT_HERSHEY_SIMPLEX, 4, (0,255,255), 8, lineType=cv.LINE_AA)
+
+    def runGameStep(self):
+        if self.isCalibrated:
+            if self.newGame:
+                self.objectDetector.readNewFrame()
+                self.runGameCountdown()
+            else:
+                self.objectDetector.runDetection()
+                labelDetections = self.updateGameParams()
+
+                # Name: trackingFunc 
+                # Description: Determines whether the object is in the predetermined random spot
+                # Code:
+                # trackingFunc(cols, rows, xLeft, yTop, xRight, yBottom):
+                #   xLeftDiff = abs(xLeft - self.objectDetector.xLeftPos)
+                #   yTopDiff = abs(yTop - self.objectDetector.yTopPos)
+                #   xRightDiff = abs(xRight - self.objectDetector.xRightPos)
+                #   yBottomDiff = abs(yBottom - self.objectDetector.yBottomPos)
+                #   isObjectInPosition = xLeftDiff < self.trackingThreshold and yTopDiff < self.trackingThreshold and xRightDiff < self.trackingThreshold and yBottomDiff < self.trackingThreshold
+                #   return isObjectInPosition
+                trackingFunc = lambda cols, rows, xLeft, yTop, xRight, yBottom : abs(xLeft - self.rectPt1[0]) < self.trackingThreshold and abs(yTop - self.rectPt1[1]) < self.trackingThreshold and abs(xRight - self.rectPt2[0]) < self.trackingThreshold and abs(yBottom - self.rectPt2[1]) < self.trackingThreshold
+
+                if labelDetections:
+                    self.isObjectInPosition = self.objectDetector.labelDetections(self.classToDetect, trackingFunc)
+        else:
+            self.objectDetector.runDetection()
             self.updateCalibrationParams()
             trackingFunc = lambda cols, rows, xLeft, yTop, xRight, yBottom : False
-        
-        if labelDetections:
-            self.isObjectInPosition = self.objectDetector.labelDetections(self.classToDetect, trackingFunc)
+            self.objectDetector.labelDetections(self.classToDetect, trackingFunc)
         
         return self.objectDetector.getImage()
 
