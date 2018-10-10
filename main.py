@@ -76,6 +76,8 @@ class ObjectDetector:
         self.netModel = netModel
         self.scoreThreshold = scoreThreshold
         self.trackingThreshold = trackingThreshold
+        cv.namedWindow(_gameName, cv.WINDOW_NORMAL)
+        # cv.setWindowProperty(_gameName, cv.WND_PROP_FULLSCREEN, cv.WINDOW_FULLSCREEN)
         self.cvNet = cv.dnn.readNetFromTensorflow(self.netModel['modelPath'], self.netModel['configPath'])
         self.create_capture()
 
