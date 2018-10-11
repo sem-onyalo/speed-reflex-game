@@ -234,14 +234,11 @@ class MoveItToTheSpot:
     objectDetector = None
     classToDetect = ""
 
-    # Temporary vars. Can remove once menu options are added to play and play again
-    showResultStartTime = None
-    showResultMaxTime = 5
-
     def __init__(self, objectDetector, classToDetect):
         self.objectDetector = objectDetector
         self.classToDetect = classToDetect
         self.audioHelper = AudioHelper()
+        self.awaitingGameCmd = True
         self.newGame = True
 
     def getRectanglePts(self):
@@ -271,6 +268,18 @@ class MoveItToTheSpot:
         elapsedTimeStr = str(datetime.timedelta(seconds=elapsedTime))
         elapsedTimeStr = elapsedTimeStr[(elapsedTimeStr.index(':') + 1):]
         return elapsedTimeStr
+
+    def showGameCmdMenu(self):
+        if not self.isCalibrated:
+            self.showCalibrateMenu()
+        else:
+            self.showPlayOrExitMenu()
+
+    def showCalibrateMenu(self):
+        textColor = (255,255,255)
+        textFont = cv.FONT_HERSHEY_SIMPLEX
+        cv.rectangle(self.objectDetector.getImage(), (170,310), (530,370), (0,0,0), thickness=cv.FILLED, lineType=cv.LINE_AA)
+        cv.putText(self.objectDetector.getImage(), "Press 'C' to calibrate", (180, 350), textFont, 1, textColor, 2, lineType=cv.LINE_AA)
 
     def showPlayOrExitMenu(self):
         textColor = (255,255,255)
@@ -323,18 +332,6 @@ class MoveItToTheSpot:
                 elapsedTime = self.winLevelElapsedTime
                 elapsedTimeStr = self.getElapsedTimeStr(elapsedTime)
                 if not self.audioHelper.audioStatus[_winLevelAudioKey]:
-                    # # ---------- Start: Code for temp show result vars ----------
-                    # if self.showResultStartTime == None:
-                    #     self.showResultStartTime = time.time()
-                    #     labelDetections = False
-                    # else:
-                    #     currentTime = time.time()
-                    #     if currentTime - self.showResultStartTime > self.showResultMaxTime:
-                    #         self.showResultStartTime = None
-                    #         # ---------- End: Code for temp show result vars ----------
-                    # ---------- Start: Code for temp starting new game ----------
-                    self.newGame = True # game to be started by menu choice
-                    # ---------- End: Code for temp starting new game ----------
                     # reset game vars
                     self.rectPt1, self.rectPt2 = self.getRectanglePts()
                     self.repStartTime = time.time()
@@ -343,8 +340,6 @@ class MoveItToTheSpot:
                     self.showResult = False
                     self.winLevel = False
                     self.currentRep = 0
-                    # else:
-                    #     labelDetections = False
                 else:
                     labelDetections = False
             elif not self.audioHelper.audioStatus[_winItemAudioKey]:
@@ -396,19 +391,26 @@ class MoveItToTheSpot:
             self.gameCmd = 'START'
         elif cmd == 78 or cmd == 110: # N or n
             self.gameCmd = 'EXIT'
+        elif cmd == 67 or cmd == 99: # C or c
+            self.gameCmd = 'CALIBRATE'
 
     def runGameStep(self):
         isRun = True
         if self.awaitingGameCmd:
             self.objectDetector.readNewFrame()
-            self.showPlayOrExitMenu()
+            self.showGameCmdMenu()
             if self.gameCmd == 'START':
                 self.awaitingGameCmd = False
                 self.gameCmd = None
+                self.newGame = True
             elif self.gameCmd == 'EXIT':
                 self.awaitingGameCmd = False
                 self.gameCmd = None
                 isRun = False
+            elif self.gameCmd == 'CALIBRATE':
+                self.awaitingGameCmd = False
+                self.gameCmd = None
+                self.isCalibrated = False
         else:
             if self.isCalibrated:
                 if self.newGame:
