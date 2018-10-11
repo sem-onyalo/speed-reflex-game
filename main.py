@@ -184,6 +184,9 @@ class KeepItInTheMiddle:
             self.isWinning = True
         return gameLabel
         
+    def runGameCmd(self, cmd):
+        return None
+
     def runGameStep(self):
         self.objectDetector.runDetection()
         gameLabel = self.updateGameParams()
@@ -201,7 +204,7 @@ class KeepItInTheMiddle:
         trackingFunc = lambda cols, rows, xLeft, yTop, xRight, yBottom : abs(xLeft - (cols - xRight)) < self.trackingThreshold and abs(yTop - (rows - yBottom)) < self.trackingThreshold
         
         self.isObjectInPosition = self.objectDetector.labelDetections(self.classToDetect, trackingFunc, gameLabel)
-        return self.objectDetector.getImage()
+        return self.objectDetector.getImage(), True
 
 class MoveItToTheSpot:
     trackingThreshold = 20
@@ -225,6 +228,8 @@ class MoveItToTheSpot:
     countdownStartTime = None
     countdownMaxTime = 3
     newGame = False
+    awaitingGameCmd = False
+    gameCmd = None
 
     objectDetector = None
     classToDetect = ""
@@ -266,6 +271,14 @@ class MoveItToTheSpot:
         elapsedTimeStr = str(datetime.timedelta(seconds=elapsedTime))
         elapsedTimeStr = elapsedTimeStr[(elapsedTimeStr.index(':') + 1):]
         return elapsedTimeStr
+
+    def showPlayOrExitMenu(self):
+        textColor = (255,255,255)
+        textFont = cv.FONT_HERSHEY_SIMPLEX
+        cv.rectangle(self.objectDetector.getImage(), (200,310), (420,410), (0,0,0), thickness=cv.FILLED, lineType=cv.LINE_AA)
+        cv.putText(self.objectDetector.getImage(), 'Play again?', (220, 350), textFont, 1, textColor, 2, lineType=cv.LINE_AA)
+        cv.putText(self.objectDetector.getImage(), 'Y', (240, 400), textFont, 1, textColor, 2, lineType=cv.LINE_AA)
+        cv.putText(self.objectDetector.getImage(), 'N', (360, 400), textFont, 1, textColor, 2, lineType=cv.LINE_AA)
 
     def updateCalibrationParams(self):
         if self.calibrationStep == 1: # calibrate for smallest object size
@@ -310,27 +323,28 @@ class MoveItToTheSpot:
                 elapsedTime = self.winLevelElapsedTime
                 elapsedTimeStr = self.getElapsedTimeStr(elapsedTime)
                 if not self.audioHelper.audioStatus[_winLevelAudioKey]:
-                    # ---------- Start: Code for temp show result vars ----------
-                    if self.showResultStartTime == None:
-                        self.showResultStartTime = time.time()
-                        labelDetections = False
-                    else:
-                        currentTime = time.time()
-                        if currentTime - self.showResultStartTime > self.showResultMaxTime:
-                            self.showResultStartTime = None
-                            # ---------- End: Code for temp show result vars ----------
-                            # ---------- Start: Code for temp starting new game ----------
-                            self.newGame = True # game to be started by menu choice
-                            # ---------- End: Code for temp starting new game ----------
-                            # reset game vars
-                            self.rectPt1, self.rectPt2 = self.getRectanglePts()
-                            self.repStartTime = time.time()
-                            self.winLevelElapsedTime = 0
-                            self.showResult = False
-                            self.winLevel = False
-                            self.currentRep = 0
-                        else:
-                            labelDetections = False
+                    # # ---------- Start: Code for temp show result vars ----------
+                    # if self.showResultStartTime == None:
+                    #     self.showResultStartTime = time.time()
+                    #     labelDetections = False
+                    # else:
+                    #     currentTime = time.time()
+                    #     if currentTime - self.showResultStartTime > self.showResultMaxTime:
+                    #         self.showResultStartTime = None
+                    #         # ---------- End: Code for temp show result vars ----------
+                    # ---------- Start: Code for temp starting new game ----------
+                    self.newGame = True # game to be started by menu choice
+                    # ---------- End: Code for temp starting new game ----------
+                    # reset game vars
+                    self.rectPt1, self.rectPt2 = self.getRectanglePts()
+                    self.repStartTime = time.time()
+                    self.winLevelElapsedTime = 0
+                    self.awaitingGameCmd = True
+                    self.showResult = False
+                    self.winLevel = False
+                    self.currentRep = 0
+                    # else:
+                    #     labelDetections = False
                 else:
                     labelDetections = False
             elif not self.audioHelper.audioStatus[_winItemAudioKey]:
@@ -377,36 +391,54 @@ class MoveItToTheSpot:
                 countdownStr = str(self.countdownMaxTime - int(currentTime - self.countdownStartTime))
         cv.putText(self.objectDetector.getImage(), countdownStr, (250, 270), cv.FONT_HERSHEY_SIMPLEX, 4, (0,255,255), 8, lineType=cv.LINE_AA)
 
+    def runGameCmd(self, cmd):
+        if cmd == 89 or cmd == 121: # Y or y
+            self.gameCmd = 'START'
+        elif cmd == 78 or cmd == 110: # N or n
+            self.gameCmd = 'EXIT'
+
     def runGameStep(self):
-        if self.isCalibrated:
-            if self.newGame:
-                self.objectDetector.readNewFrame()
-                self.runGameCountdown()
+        isRun = True
+        if self.awaitingGameCmd:
+            self.objectDetector.readNewFrame()
+            self.showPlayOrExitMenu()
+            if self.gameCmd == 'START':
+                self.awaitingGameCmd = False
+                self.gameCmd = None
+            elif self.gameCmd == 'EXIT':
+                self.awaitingGameCmd = False
+                self.gameCmd = None
+                isRun = False
+        else:
+            if self.isCalibrated:
+                if self.newGame:
+                    self.objectDetector.readNewFrame()
+                    self.runGameCountdown()
+                else:
+                    self.objectDetector.runDetection()
+                    labelDetections = self.updateGameParams()
+
+                    # Name: trackingFunc 
+                    # Description: Determines whether the object is in the predetermined random spot
+                    # Code:
+                    # trackingFunc(cols, rows, xLeft, yTop, xRight, yBottom):
+                    #   xLeftDiff = abs(xLeft - self.objectDetector.xLeftPos)
+                    #   yTopDiff = abs(yTop - self.objectDetector.yTopPos)
+                    #   xRightDiff = abs(xRight - self.objectDetector.xRightPos)
+                    #   yBottomDiff = abs(yBottom - self.objectDetector.yBottomPos)
+                    #   isObjectInPosition = xLeftDiff < self.trackingThreshold and yTopDiff < self.trackingThreshold and xRightDiff < self.trackingThreshold and yBottomDiff < self.trackingThreshold
+                    #   return isObjectInPosition
+                    trackingFunc = lambda cols, rows, xLeft, yTop, xRight, yBottom : abs(xLeft - self.rectPt1[0]) < self.trackingThreshold and abs(yTop - self.rectPt1[1]) < self.trackingThreshold and abs(xRight - self.rectPt2[0]) < self.trackingThreshold and abs(yBottom - self.rectPt2[1]) < self.trackingThreshold
+
+                    if labelDetections:
+                        self.isObjectInPosition = self.objectDetector.labelDetections(self.classToDetect, trackingFunc)
             else:
                 self.objectDetector.runDetection()
-                labelDetections = self.updateGameParams()
-
-                # Name: trackingFunc 
-                # Description: Determines whether the object is in the predetermined random spot
-                # Code:
-                # trackingFunc(cols, rows, xLeft, yTop, xRight, yBottom):
-                #   xLeftDiff = abs(xLeft - self.objectDetector.xLeftPos)
-                #   yTopDiff = abs(yTop - self.objectDetector.yTopPos)
-                #   xRightDiff = abs(xRight - self.objectDetector.xRightPos)
-                #   yBottomDiff = abs(yBottom - self.objectDetector.yBottomPos)
-                #   isObjectInPosition = xLeftDiff < self.trackingThreshold and yTopDiff < self.trackingThreshold and xRightDiff < self.trackingThreshold and yBottomDiff < self.trackingThreshold
-                #   return isObjectInPosition
-                trackingFunc = lambda cols, rows, xLeft, yTop, xRight, yBottom : abs(xLeft - self.rectPt1[0]) < self.trackingThreshold and abs(yTop - self.rectPt1[1]) < self.trackingThreshold and abs(xRight - self.rectPt2[0]) < self.trackingThreshold and abs(yBottom - self.rectPt2[1]) < self.trackingThreshold
-
-                if labelDetections:
-                    self.isObjectInPosition = self.objectDetector.labelDetections(self.classToDetect, trackingFunc)
-        else:
-            self.objectDetector.runDetection()
-            self.updateCalibrationParams()
-            trackingFunc = lambda cols, rows, xLeft, yTop, xRight, yBottom : False
-            self.objectDetector.labelDetections(self.classToDetect, trackingFunc)
+                self.updateCalibrationParams()
+                trackingFunc = lambda cols, rows, xLeft, yTop, xRight, yBottom : False
+                self.objectDetector.labelDetections(self.classToDetect, trackingFunc)
         
-        return self.objectDetector.getImage()
+        return self.objectDetector.getImage(), isRun
 
 def initGame(netModel, classToDetect, scoreThreshold, trackingThreshold, gameId):
     objectDetector = ObjectDetector(netModel, scoreThreshold, trackingThreshold)
@@ -433,11 +465,18 @@ if __name__ == '__main__':
     game = initGame(netModels[netModelIdx], detectClassName, scoreThreshold, trackingThreshold, args.objective)
     
     if game != None:
+        cmd = -1
         while True:
-            img = game.runGameStep()
+            if cmd != -1:
+                game.runGameCmd(cmd)
+
+            img, run = game.runGameStep()
+            if not run:
+                break
+            
             cv.imshow(_gameName, img)
-            ch = cv.waitKey(1)
-            if ch == 27:
+            cmd = cv.waitKey(1)
+            if cmd == 27:
                 break
 
     print('exiting...')
