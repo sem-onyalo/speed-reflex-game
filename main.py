@@ -69,8 +69,8 @@ class ObjectDetector:
     xRightPos = None
     yTopPos = None
     yBottomPos = None
-    frameWidth = 0
-    frameHeight = 0
+    frameWidth = 640#1920
+    frameHeight = 480#1200
 
     def __init__(self, netModel, scoreThreshold, trackingThreshold):
         self.netModel = netModel
@@ -94,8 +94,8 @@ class ObjectDetector:
         self.cap = cv.VideoCapture(source)
         if self.cap is None or not self.cap.isOpened():
             raise RuntimeError('Warning: unable to open video source: ', source)
-        self.frameWidth = int(self.cap.get(cv.CAP_PROP_FRAME_WIDTH))
-        self.frameHeight = int(self.cap.get(cv.CAP_PROP_FRAME_HEIGHT))
+        self.cap.set(cv.CAP_PROP_FRAME_WIDTH, self.frameWidth) # default: 640
+        self.cap.set(cv.CAP_PROP_FRAME_HEIGHT, self.frameHeight) # default: 480
 
     def readNewFrame(self):
         _, img = self.cap.read()
@@ -152,6 +152,9 @@ class KeepItInTheMiddle:
         self.objectDetector = objectDetector
         self.classToDetect = classToDetect
 
+    def isObjectInMiddle(self, cols, rows, xLeft, yTop, xRight, yBottom):
+        return abs(xLeft - (cols - xRight)) < self.trackingThreshold and abs(yTop - (rows - yBottom)) < self.trackingThreshold
+
     def updateGameParams(self):
         gameLabel = None
         if self.isWinning and self.isObjectInPosition and self.startTime is not None:
@@ -184,24 +187,10 @@ class KeepItInTheMiddle:
             self.isWinning = True
         return gameLabel
         
-    def runGameCmd(self, cmd):
-        return None
-
-    def runGameStep(self):
+    def runGameStep(self, cmd):
         self.objectDetector.runDetection()
         gameLabel = self.updateGameParams()
-        
-        # Name: trackingFunc 
-        # Description: Determines whether the object is in the middle of the screen
-        # Code:
-        # trackingFunc(cols, rows, xLeft, yTop, xRight, yBottom):
-        #   marginRight = cols - xRight
-        #   marginBottom = rows - yBottom
-        #   xMarginDiff = abs(xLeft - marginRight)
-        #   yMarginDiff = abs(yTop - marginBottom)
-        #   isObjectInPosition = (xMarginDiff < self.trackingThreshold and yMarginDiff < self.trackingThreshold)
-        #   return isObjectInPosition
-        trackingFunc = lambda cols, rows, xLeft, yTop, xRight, yBottom : abs(xLeft - (cols - xRight)) < self.trackingThreshold and abs(yTop - (rows - yBottom)) < self.trackingThreshold
+        trackingFunc = lambda cols, rows, xLeft, yTop, xRight, yBottom : self.isObjectInMiddle(cols, rows, xLeft, yTop, xRight, yBottom)
         
         self.isObjectInPosition = self.objectDetector.labelDetections(self.classToDetect, trackingFunc, gameLabel)
         return self.objectDetector.getImage(), True
@@ -212,34 +201,42 @@ class MoveItToTheSpot:
     showResult = False
     minObjectSize = None
     maxObjectSize = None
-    isCalibrated = False
     calibrationStep = 1
     calibrationSubStep = 1
-    calibrationStartTime = None
-    calibrationMaxTime = 3
     rectPt1 = None
     rectPt2 = None
     currentRep = 0
-    maxRep = 3
-    repStartTime = None
+    maxRep = 2
     winLevel = False
     winLevelElapsedTime = 0
-    audioHelper = None
+    playerMode = None
+
+    # Timer vars
+    calibrationStartTime = None
+    calibrationMaxTime = 3
     countdownStartTime = None
     countdownMaxTime = 3
-    newGame = False
-    awaitingGameCmd = False
-    gameCmd = None
+    repStartTime = None
 
+    # Game mode constants
+    gameModeAwaitingCalibrationConfirm = 'AWCL'
+    gameModeAwaitingPlayConfirm = 'AWPL'
+    gameModeCalibration = 'CLBT'
+    gameModeGetPlayers = 'GTPL'
+    gameModeCountdown = 'CTDN'
+    gameModePlay = 'PLAY'
+
+    # Constructor init'd vars
     objectDetector = None
     classToDetect = ""
+    audioHelper = None
+    gameMode = None
 
     def __init__(self, objectDetector, classToDetect):
+        self.gameMode = self.gameModeAwaitingCalibrationConfirm
         self.objectDetector = objectDetector
         self.classToDetect = classToDetect
         self.audioHelper = AudioHelper()
-        self.awaitingGameCmd = True
-        self.newGame = True
 
     def getRectanglePts(self):
         maxWidth = self.objectDetector.frameWidth
@@ -269,17 +266,27 @@ class MoveItToTheSpot:
         elapsedTimeStr = elapsedTimeStr[(elapsedTimeStr.index(':') + 1):]
         return elapsedTimeStr
 
-    def showGameCmdMenu(self):
-        if not self.isCalibrated:
-            self.showCalibrateMenu()
-        else:
-            self.showPlayOrExitMenu()
+    def isObjectInSpot(self, cols, rows, xLeft, yTop, xRight, yBottom):
+        xLeftDiff = abs(xLeft - self.rectPt1[0])
+        yTopDiff = abs(yTop - self.rectPt1[1])
+        xRightDiff = abs(xRight - self.rectPt2[0])
+        yBottomDiff = abs(yBottom - self.rectPt2[1])
+        isObjectInPosition = xLeftDiff < self.trackingThreshold and yTopDiff < self.trackingThreshold and xRightDiff < self.trackingThreshold and yBottomDiff < self.trackingThreshold
+        return isObjectInPosition
 
     def showCalibrateMenu(self):
         textColor = (255,255,255)
         textFont = cv.FONT_HERSHEY_SIMPLEX
         cv.rectangle(self.objectDetector.getImage(), (170,310), (530,370), (0,0,0), thickness=cv.FILLED, lineType=cv.LINE_AA)
         cv.putText(self.objectDetector.getImage(), "Press 'C' to calibrate", (180, 350), textFont, 1, textColor, 2, lineType=cv.LINE_AA)
+
+    def showPlayerModeMenu(self):
+        textColor = (255,255,255)
+        textFont = cv.FONT_HERSHEY_SIMPLEX
+        cv.rectangle(self.objectDetector.getImage(), (200,310), (420,410), (0,0,0), thickness=cv.FILLED, lineType=cv.LINE_AA)
+        cv.putText(self.objectDetector.getImage(), 'Players?', (250, 350), textFont, 1, textColor, 2, lineType=cv.LINE_AA)
+        cv.putText(self.objectDetector.getImage(), '1', (240, 400), textFont, 1, textColor, 2, lineType=cv.LINE_AA)
+        cv.putText(self.objectDetector.getImage(), '2', (360, 400), textFont, 1, textColor, 2, lineType=cv.LINE_AA)
 
     def showPlayOrExitMenu(self):
         textColor = (255,255,255)
@@ -290,6 +297,7 @@ class MoveItToTheSpot:
         cv.putText(self.objectDetector.getImage(), 'N', (360, 400), textFont, 1, textColor, 2, lineType=cv.LINE_AA)
 
     def updateCalibrationParams(self):
+        calibrationComplete = False
         if self.calibrationStep == 1: # calibrate for smallest object size
             if self.calibrationSubStep == 1:
                 print('Hold object farthest from screen')
@@ -310,11 +318,14 @@ class MoveItToTheSpot:
         elif self.calibrationStep == 2: # calculate calibration parmas
             self.calibrationSubStep = 1
             self.calibrationStep = 1
-            self.isCalibrated = True
+            calibrationComplete = True
             print('Calibration complete!')
+
+        return calibrationComplete
 
     def updateGameParams(self):
         labelDetections = True
+        isRoundComplete = False
         boxColor = (0, 255, 255)
         # textColor = (153, 103, 73)
         textColor = (114, 70, 20)
@@ -332,12 +343,13 @@ class MoveItToTheSpot:
                 elapsedTime = self.winLevelElapsedTime
                 elapsedTimeStr = self.getElapsedTimeStr(elapsedTime)
                 if not self.audioHelper.audioStatus[_winLevelAudioKey]:
+                    isRoundComplete = True
                     # reset game vars
                     self.rectPt1, self.rectPt2 = self.getRectanglePts()
                     self.repStartTime = time.time()
                     self.winLevelElapsedTime = 0
-                    self.awaitingGameCmd = True
                     self.showResult = False
+                    self.playerMode = None
                     self.winLevel = False
                     self.currentRep = 0
                 else:
@@ -370,9 +382,10 @@ class MoveItToTheSpot:
         else:
             cv.putText(self.objectDetector.getImage(), elapsedTimeStr, (150, 270), textFont, 4, (0,255,255), 8, lineType=cv.LINE_AA)
 
-        return labelDetections
+        return isRoundComplete, labelDetections
 
     def runGameCountdown(self):
+        countdownComplete = False
         if self.countdownStartTime == None:
             self.countdownStartTime = time.time()
             countdownStr = str(self.countdownMaxTime)
@@ -380,67 +393,73 @@ class MoveItToTheSpot:
             currentTime = time.time()
             if currentTime - self.countdownStartTime > self.countdownMaxTime:
                 countdownStr = 'GO'
-                self.newGame = False
                 self.countdownStartTime = None
+                countdownComplete = True
             else:
                 countdownStr = str(self.countdownMaxTime - int(currentTime - self.countdownStartTime))
         cv.putText(self.objectDetector.getImage(), countdownStr, (250, 270), cv.FONT_HERSHEY_SIMPLEX, 4, (0,255,255), 8, lineType=cv.LINE_AA)
+        return countdownComplete
 
-    def runGameCmd(self, cmd):
-        if cmd == 89 or cmd == 121: # Y or y
-            self.gameCmd = 'START'
-        elif cmd == 78 or cmd == 110: # N or n
-            self.gameCmd = 'EXIT'
-        elif cmd == 67 or cmd == 99: # C or c
-            self.gameCmd = 'CALIBRATE'
+    def runGameStep(self, cmd):
+        continueRun = True
 
-    def runGameStep(self):
-        isRun = True
-        if self.awaitingGameCmd:
+        if self.gameMode == self.gameModeAwaitingCalibrationConfirm:
             self.objectDetector.readNewFrame()
-            self.showGameCmdMenu()
-            if self.gameCmd == 'START':
-                self.awaitingGameCmd = False
-                self.gameCmd = None
-                self.newGame = True
-            elif self.gameCmd == 'EXIT':
-                self.awaitingGameCmd = False
-                self.gameCmd = None
-                isRun = False
-            elif self.gameCmd == 'CALIBRATE':
-                self.awaitingGameCmd = False
-                self.gameCmd = None
-                self.isCalibrated = False
-        else:
-            if self.isCalibrated:
-                if self.newGame:
-                    self.objectDetector.readNewFrame()
-                    self.runGameCountdown()
-                else:
-                    self.objectDetector.runDetection()
-                    labelDetections = self.updateGameParams()
-
-                    # Name: trackingFunc 
-                    # Description: Determines whether the object is in the predetermined random spot
-                    # Code:
-                    # trackingFunc(cols, rows, xLeft, yTop, xRight, yBottom):
-                    #   xLeftDiff = abs(xLeft - self.objectDetector.xLeftPos)
-                    #   yTopDiff = abs(yTop - self.objectDetector.yTopPos)
-                    #   xRightDiff = abs(xRight - self.objectDetector.xRightPos)
-                    #   yBottomDiff = abs(yBottom - self.objectDetector.yBottomPos)
-                    #   isObjectInPosition = xLeftDiff < self.trackingThreshold and yTopDiff < self.trackingThreshold and xRightDiff < self.trackingThreshold and yBottomDiff < self.trackingThreshold
-                    #   return isObjectInPosition
-                    trackingFunc = lambda cols, rows, xLeft, yTop, xRight, yBottom : abs(xLeft - self.rectPt1[0]) < self.trackingThreshold and abs(yTop - self.rectPt1[1]) < self.trackingThreshold and abs(xRight - self.rectPt2[0]) < self.trackingThreshold and abs(yBottom - self.rectPt2[1]) < self.trackingThreshold
-
-                    if labelDetections:
-                        self.isObjectInPosition = self.objectDetector.labelDetections(self.classToDetect, trackingFunc)
-            else:
-                self.objectDetector.runDetection()
-                self.updateCalibrationParams()
-                trackingFunc = lambda cols, rows, xLeft, yTop, xRight, yBottom : False
-                self.objectDetector.labelDetections(self.classToDetect, trackingFunc)
+            self.showCalibrateMenu()
+            if cmd == 67 or cmd == 99: # C or c
+                self.gameMode = self.gameModeCalibration
+                print('Switching game mode:', self.gameMode)
         
-        return self.objectDetector.getImage(), isRun
+        elif self.gameMode == self.gameModeCalibration:
+            self.objectDetector.runDetection()
+            isCalibrationComplete = self.updateCalibrationParams()
+            trackingFunc = lambda cols, rows, xLeft, yTop, xRight, yBottom : False
+            self.objectDetector.labelDetections(self.classToDetect, trackingFunc)
+            if isCalibrationComplete:
+                self.gameMode = self.gameModeGetPlayers
+                print('Switching game mode:', self.gameMode)
+        
+        elif self.gameMode == self.gameModeGetPlayers:
+            self.objectDetector.readNewFrame()
+            self.showPlayerModeMenu()
+            if cmd == 49 or cmd == 50: # 1 or 2
+                if cmd == 49: # 1
+                    self.playerMode = 1
+                elif cmd == 50: # 2
+                    self.playerMode = 2
+                self.gameMode = self.gameModeCountdown
+                print('Switching game mode:', self.gameMode)
+        
+        elif self.gameMode == self.gameModeCountdown:
+            self.objectDetector.readNewFrame()
+            isCountdownComplete = self.runGameCountdown()
+            if isCountdownComplete:
+                self.gameMode = self.gameModePlay
+                print('Switching game mode:', self.gameMode)
+
+        elif self.gameMode == self.gameModePlay:
+            self.objectDetector.runDetection()
+            isRoundComplete, labelDetections = self.updateGameParams()
+            trackingFunc = lambda cols, rows, xLeft, yTop, xRight, yBottom : self.isObjectInSpot(cols, rows, xLeft, yTop, xRight, yBottom)
+            if labelDetections:
+                self.isObjectInPosition = self.objectDetector.labelDetections(self.classToDetect, trackingFunc)
+            if isRoundComplete:
+                self.gameMode = self.gameModeAwaitingPlayConfirm
+                print('Switching game mode:', self.gameMode)
+
+        elif self.gameMode == self.gameModeAwaitingPlayConfirm:
+            self.objectDetector.readNewFrame()
+            self.showPlayOrExitMenu()
+            if cmd == 78 or cmd == 110: # N or n
+                continueRun = False
+            elif cmd == 89 or cmd == 121: # Y or y
+                self.gameMode = self.gameModeGetPlayers
+                print('Switching game mode:', self.gameMode)
+
+        else:
+            raise RuntimeError('Game mode error, current game mode is', self.gameMode)
+        
+        return self.objectDetector.getImage(), continueRun
 
 def initGame(netModel, classToDetect, scoreThreshold, trackingThreshold, gameId):
     objectDetector = ObjectDetector(netModel, scoreThreshold, trackingThreshold)
@@ -469,16 +488,10 @@ if __name__ == '__main__':
     if game != None:
         cmd = -1
         while True:
-            if cmd != -1:
-                game.runGameCmd(cmd)
-
-            img, run = game.runGameStep()
-            if not run:
-                break
-            
+            img, run = game.runGameStep(cmd)
             cv.imshow(_gameName, img)
             cmd = cv.waitKey(1)
-            if cmd == 27:
+            if not run or cmd == 27: # ESC
                 break
 
     print('exiting...')
