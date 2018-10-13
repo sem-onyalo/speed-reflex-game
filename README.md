@@ -15,9 +15,9 @@ pip install dlib
 usage: main.py [-h] objective
 
 positional arguments:
-  objective: The game objective to play: 
-  1 - Keep It In The Middle 
-  2 - Move It To The Spot
+  objective: The game to play: 
+  1 - Centre Challenge
+  2 - Spot Challenge
 
 optional arguments:
   -h, --help  show this help message and exit
