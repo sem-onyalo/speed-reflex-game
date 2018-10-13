@@ -40,7 +40,7 @@ class VideoManager:
     def addRectangle(self, pt1, pt2, color, thickness, isFilled=False):
         if isFilled:
             thickness = cv.FILLED
-        cv.rectangle(self.img, pt1, pt2, color, thickness)
+        cv.rectangle(self.img, pt1, pt2, color, thickness, cv.LINE_AA)
 
     def addLine(self, pt1, pt2, color, thickness):
         cv.line(self.img, pt1, pt2, color, thickness)

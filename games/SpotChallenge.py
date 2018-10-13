@@ -1,4 +1,3 @@
-import cv2 as cv
 import datetime
 import random
 import time
@@ -18,6 +17,9 @@ class SpotChallenge:
     winLevel = False
     winLevelElapsedTime = 0
     playerMode = None
+    defaultFont = None
+    defaultMenuColor = (255,0,0)
+    defaultMenuTextColor = (255,255,255)
 
     # Timer vars
     calibrationStartTime = None
@@ -42,6 +44,7 @@ class SpotChallenge:
 
     def __init__(self, videoManager, audioManager, classToDetect):
         self.gameMode = self.gameModeAwaitingCalibrationConfirm
+        self.defaultFont = videoManager.getDefaultFont()
         self.classToDetect = classToDetect
         self.audioManager = audioManager
         self.videoManager = videoManager
@@ -83,26 +86,20 @@ class SpotChallenge:
         return isObjectInPosition
 
     def showCalibrateMenu(self):
-        textColor = (255,255,255)
-        textFont = cv.FONT_HERSHEY_SIMPLEX
-        cv.rectangle(self.videoManager.getImage(), (170,310), (530,370), (0,0,0), thickness=cv.FILLED, lineType=cv.LINE_AA)
-        cv.putText(self.videoManager.getImage(), "Press 'C' to calibrate", (180, 350), textFont, 1, textColor, 2, lineType=cv.LINE_AA)
+        self.videoManager.addRectangle((170,310), (530,370), self.defaultMenuColor, 1, True)
+        self.videoManager.addText("Press 'C' to calibrate", (180, 350), self.defaultFont, 1, self.defaultMenuTextColor, 2)
 
     def showPlayerModeMenu(self):
-        textColor = (255,255,255)
-        textFont = cv.FONT_HERSHEY_SIMPLEX
-        cv.rectangle(self.videoManager.getImage(), (200,310), (420,410), (0,0,0), thickness=cv.FILLED, lineType=cv.LINE_AA)
-        cv.putText(self.videoManager.getImage(), 'Players?', (250, 350), textFont, 1, textColor, 2, lineType=cv.LINE_AA)
-        cv.putText(self.videoManager.getImage(), '1', (240, 400), textFont, 1, textColor, 2, lineType=cv.LINE_AA)
-        cv.putText(self.videoManager.getImage(), '2', (360, 400), textFont, 1, textColor, 2, lineType=cv.LINE_AA)
+        self.videoManager.addRectangle((200,310), (420,410), self.defaultMenuColor, 1, True)
+        self.videoManager.addText('Players?', (250, 350), self.defaultFont, 1, self.defaultMenuTextColor, 2)
+        self.videoManager.addText('1', (240, 400), self.defaultFont, 1, self.defaultMenuTextColor, 2)
+        self.videoManager.addText('2', (360, 400), self.defaultFont, 1, self.defaultMenuTextColor, 2)
 
     def showPlayOrExitMenu(self):
-        textColor = (255,255,255)
-        textFont = cv.FONT_HERSHEY_SIMPLEX
-        cv.rectangle(self.videoManager.getImage(), (200,310), (420,410), (0,0,0), thickness=cv.FILLED, lineType=cv.LINE_AA)
-        cv.putText(self.videoManager.getImage(), 'Play again?', (220, 350), textFont, 1, textColor, 2, lineType=cv.LINE_AA)
-        cv.putText(self.videoManager.getImage(), 'Y', (240, 400), textFont, 1, textColor, 2, lineType=cv.LINE_AA)
-        cv.putText(self.videoManager.getImage(), 'N', (360, 400), textFont, 1, textColor, 2, lineType=cv.LINE_AA)
+        self.videoManager.addRectangle((200,310), (420,410), self.defaultMenuColor, 1, True)
+        self.videoManager.addText('Play again?', (220, 350), self.defaultFont, 1, self.defaultMenuTextColor, 2)
+        self.videoManager.addText('Y', (240, 400), self.defaultFont, 1, self.defaultMenuTextColor, 2)
+        self.videoManager.addText('N', (360, 400), self.defaultFont, 1, self.defaultMenuTextColor, 2)
 
     def updateCalibrationParams(self):
         calibrationComplete = False
@@ -135,11 +132,9 @@ class SpotChallenge:
         labelDetections = True
         isRoundComplete = False
         boxColor = (0, 255, 255)
-        # textColor = (153, 103, 73)
         textColor = (114, 70, 20)
         textSize = 1.5
         textThickness = 3
-        textFont = cv.FONT_HERSHEY_SIMPLEX
         elapsedTime = int(time.time() - self.repStartTime) if self.repStartTime != None else 0
         elapsedTimeStr = self.getElapsedTimeStr(elapsedTime)
         if self.rectPt1 == None or self.rectPt2 == None: # initial state, on first run
@@ -181,14 +176,14 @@ class SpotChallenge:
                 self.audioManager.playAudio(self.audioManager.winItemAudioKey)
         
         progressDisplayOffset = 175 if self.currentRep < 10 else 200
-        cv.putText(self.videoManager.getImage(), 'PROGRESS', (self.videoManager.frameWidth - 200, 90), textFont, 1, textColor, 2, lineType=cv.LINE_AA)
-        cv.putText(self.videoManager.getImage(), str(self.currentRep) + '/' + str(self.maxRep), (self.videoManager.frameWidth - progressDisplayOffset, 140), textFont, textSize, textColor, textThickness, lineType=cv.LINE_AA)
-        cv.putText(self.videoManager.getImage(), 'TIME', (50, 90), textFont, 1, textColor, 2, lineType=cv.LINE_AA)
-        cv.putText(self.videoManager.getImage(), elapsedTimeStr, (20, 140), textFont, textSize, textColor, textThickness, lineType=cv.LINE_AA)
+        self.videoManager.addText('PROGRESS', (self.videoManager.frameWidth - 200, 90), self.defaultFont, 1, textColor, 2)
+        self.videoManager.addText(str(self.currentRep) + '/' + str(self.maxRep), (self.videoManager.frameWidth - progressDisplayOffset, 140), self.defaultFont, textSize, textColor, textThickness)
+        self.videoManager.addText('TIME', (50, 90), self.defaultFont, 1, textColor, 2)
+        self.videoManager.addText(elapsedTimeStr, (20, 140), self.defaultFont, textSize, textColor, textThickness)
         if not self.winLevel:
-            cv.rectangle(self.videoManager.getImage(), self.rectPt1, self.rectPt2, boxColor, thickness=6)
+            self.videoManager.addRectangle(self.rectPt1, self.rectPt2, boxColor, 6)
         else:
-            cv.putText(self.videoManager.getImage(), elapsedTimeStr, (150, 270), textFont, 4, (0,255,255), 8, lineType=cv.LINE_AA)
+            self.videoManager.addText(elapsedTimeStr, (150, 270), self.defaultFont, 4, (0,255,255), 8)
 
         return isRoundComplete, labelDetections
 
@@ -205,7 +200,7 @@ class SpotChallenge:
                 countdownComplete = True
             else:
                 countdownStr = str(self.countdownMaxTime - int(currentTime - self.countdownStartTime))
-        cv.putText(self.videoManager.getImage(), countdownStr, (250, 270), cv.FONT_HERSHEY_SIMPLEX, 4, (0,255,255), 8, lineType=cv.LINE_AA)
+        self.videoManager.addText(countdownStr, (250, 270), self.defaultFont, 4, (0,255,255), 8)
         return countdownComplete
 
     def runGameStep(self, cmd):
