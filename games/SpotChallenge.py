@@ -18,8 +18,6 @@ class SpotChallenge:
     winLevelElapsedTime = 0
     playerMode = None
     defaultFont = None
-    defaultMenuColor = (255,0,0)
-    defaultMenuTextColor = (255,255,255)
 
     # Timer vars
     calibrationStartTime = None
@@ -49,6 +47,14 @@ class SpotChallenge:
         self.audioManager = audioManager
         self.videoManager = videoManager
 
+    def isObjectInSpot(self, cols, rows, xLeft, yTop, xRight, yBottom):
+        xLeftDiff = abs(xLeft - self.rectPt1[0])
+        yTopDiff = abs(yTop - self.rectPt1[1])
+        xRightDiff = abs(xRight - self.rectPt2[0])
+        yBottomDiff = abs(yBottom - self.rectPt2[1])
+        isObjectInPosition = xLeftDiff < self.trackingThreshold and yTopDiff < self.trackingThreshold and xRightDiff < self.trackingThreshold and yBottomDiff < self.trackingThreshold
+        return isObjectInPosition
+
     def getRectanglePts(self):
         maxWidth = self.videoManager.frameWidth
         minHeight = self.videoManager.imgMargin
@@ -77,29 +83,72 @@ class SpotChallenge:
         elapsedTimeStr = elapsedTimeStr[(elapsedTimeStr.index(':') + 1):]
         return elapsedTimeStr
 
-    def isObjectInSpot(self, cols, rows, xLeft, yTop, xRight, yBottom):
-        xLeftDiff = abs(xLeft - self.rectPt1[0])
-        yTopDiff = abs(yTop - self.rectPt1[1])
-        xRightDiff = abs(xRight - self.rectPt2[0])
-        yBottomDiff = abs(yBottom - self.rectPt2[1])
-        isObjectInPosition = xLeftDiff < self.trackingThreshold and yTopDiff < self.trackingThreshold and xRightDiff < self.trackingThreshold and yBottomDiff < self.trackingThreshold
-        return isObjectInPosition
+    def getTextPosition(self, text, textFont, textScale, textThickness, widthFactor=1, widthPos='centre', heightPos='centre'):
+        textSize = self.videoManager.getTextSize(text, self.defaultFont, textScale, textThickness)
+        textWidth = textSize[0]
+        textHeight = textSize[1]
+
+        if widthPos == 'right':
+            textX = int(round((self.videoManager.frameWidth / widthFactor - textWidth) / 2)) + self.videoManager.frameWidth - int(round(self.videoManager.frameWidth / widthFactor))
+        else: # elif widthPos == 'centre'
+            textX = int(round((self.videoManager.frameWidth / widthFactor - textWidth) / 2))
+
+        if heightPos == 'top':
+            textY = self.videoManager.imgMargin + textHeight
+        else: # elif heightPos == 'centre'
+            textY = int(round((self.videoManager.frameHeight - textHeight) / 2)) + textHeight
+
+        return textX, textY, textWidth, textHeight
+
+    def addText(self, text, textScale=1, textColor=(238,238,238), textThickness=2, menuColor=(155,109,29), showBackground=True, position='centre'):
+        textX, textY, textWidth, textHeight = self.getTextPosition(text, self.defaultFont, textScale, textThickness)
+        menuPadX = 15
+        menuPadY = 20
+        rectPt1X = textX - menuPadX
+        rectPt1Y = textY - textHeight - menuPadY
+        rectPt2X = textX + textWidth + menuPadX
+        rectPt2Y = textY + menuPadY
+        if showBackground:
+            self.videoManager.addRectangle((rectPt1X, rectPt1Y), (rectPt2X, rectPt2Y), menuColor, -1)
+        self.videoManager.addText(text, (textX, textY), self.defaultFont, textScale, textColor, textThickness)
+
+    def addTextGameStats(self, currentRep, maxRep, elapsedTimeStr):
+        widthPositionFactor = 3
+        textColor = (114, 70, 20)
+        titleScale = 1
+        titleThickness = 2
+        valueScale = 1.5
+        valueThickness = 3
+
+        timeTitle = 'TIME'
+        timeValue = elapsedTimeStr
+        timeTitleTopPad = 10
+        timeValueTopPad = timeTitleTopPad + 15
+        timeTitleX, timeTitleY, _, timeTitleHeight = self.getTextPosition(timeTitle, self.defaultFont, titleScale, titleThickness, widthPositionFactor, heightPos='top')
+        timeValueX, timeValueY, _, _ = self.getTextPosition(timeValue, self.defaultFont, valueScale, valueThickness, widthPositionFactor, heightPos='top')
+        self.videoManager.addText(timeTitle, (timeTitleX, timeTitleY + timeTitleTopPad), self.defaultFont, titleScale, textColor, titleThickness)
+        self.videoManager.addText(timeValue, (timeValueX, timeValueY + timeTitleHeight + timeValueTopPad), self.defaultFont, valueScale, textColor, valueThickness)
+        
+        progTitle = 'PROGRESS'
+        progValue = str(currentRep) + '/' + str(maxRep)
+        progTitleTopPad = 10
+        progValueTopPad = progTitleTopPad + 15
+        progTitleX, progTitleY, _, progTitleHeight = self.getTextPosition(progTitle, self.defaultFont, titleScale, titleThickness, widthPositionFactor, widthPos='right', heightPos='top')
+        progValueX, progValueY, _, _ = self.getTextPosition(progValue, self.defaultFont, valueScale, valueThickness, widthPositionFactor, widthPos='right', heightPos='top')
+        self.videoManager.addText(progTitle, (progTitleX, progTitleY + progTitleTopPad), self.defaultFont, titleScale, textColor, titleThickness)
+        self.videoManager.addText(progValue, (progValueX, progValueY + progTitleHeight + progValueTopPad), self.defaultFont, valueScale, textColor, valueThickness)
 
     def showCalibrateMenu(self):
-        self.videoManager.addRectangle((170,310), (530,370), self.defaultMenuColor, 1, True)
-        self.videoManager.addText("Press 'C' to calibrate", (180, 350), self.defaultFont, 1, self.defaultMenuTextColor, 2)
+        text = "Press 'C' to calibrate"
+        self.addText(text)
 
     def showPlayerModeMenu(self):
-        self.videoManager.addRectangle((200,310), (420,410), self.defaultMenuColor, 1, True)
-        self.videoManager.addText('Players?', (250, 350), self.defaultFont, 1, self.defaultMenuTextColor, 2)
-        self.videoManager.addText('1', (240, 400), self.defaultFont, 1, self.defaultMenuTextColor, 2)
-        self.videoManager.addText('2', (360, 400), self.defaultFont, 1, self.defaultMenuTextColor, 2)
+        text = 'No. of Players?'
+        self.addText(text)
 
     def showPlayOrExitMenu(self):
-        self.videoManager.addRectangle((200,310), (420,410), self.defaultMenuColor, 1, True)
-        self.videoManager.addText('Play again?', (220, 350), self.defaultFont, 1, self.defaultMenuTextColor, 2)
-        self.videoManager.addText('Y', (240, 400), self.defaultFont, 1, self.defaultMenuTextColor, 2)
-        self.videoManager.addText('N', (360, 400), self.defaultFont, 1, self.defaultMenuTextColor, 2)
+        text = 'Play again?'
+        self.addText(text)
 
     def updateCalibrationParams(self):
         calibrationComplete = False
@@ -132,9 +181,6 @@ class SpotChallenge:
         labelDetections = True
         isRoundComplete = False
         boxColor = (0, 255, 255)
-        textColor = (114, 70, 20)
-        textSize = 1.5
-        textThickness = 3
         elapsedTime = int(time.time() - self.repStartTime) if self.repStartTime != None else 0
         elapsedTimeStr = self.getElapsedTimeStr(elapsedTime)
         if self.rectPt1 == None or self.rectPt2 == None: # initial state, on first run
@@ -175,15 +221,11 @@ class SpotChallenge:
             else:
                 self.audioManager.playAudio(self.audioManager.winItemAudioKey)
         
-        progressDisplayOffset = 175 if self.currentRep < 10 else 200
-        self.videoManager.addText('PROGRESS', (self.videoManager.frameWidth - 200, 90), self.defaultFont, 1, textColor, 2)
-        self.videoManager.addText(str(self.currentRep) + '/' + str(self.maxRep), (self.videoManager.frameWidth - progressDisplayOffset, 140), self.defaultFont, textSize, textColor, textThickness)
-        self.videoManager.addText('TIME', (50, 90), self.defaultFont, 1, textColor, 2)
-        self.videoManager.addText(elapsedTimeStr, (20, 140), self.defaultFont, textSize, textColor, textThickness)
+        self.addTextGameStats(self.currentRep, self.maxRep, elapsedTimeStr)
         if not self.winLevel:
             self.videoManager.addRectangle(self.rectPt1, self.rectPt2, boxColor, 6)
         else:
-            self.videoManager.addText(elapsedTimeStr, (150, 270), self.defaultFont, 4, (0,255,255), 8)
+            self.addText(elapsedTimeStr, textScale=4, textThickness=8)
 
         return isRoundComplete, labelDetections
 
@@ -200,7 +242,7 @@ class SpotChallenge:
                 countdownComplete = True
             else:
                 countdownStr = str(self.countdownMaxTime - int(currentTime - self.countdownStartTime))
-        self.videoManager.addText(countdownStr, (250, 270), self.defaultFont, 4, (0,255,255), 8)
+        self.addText(countdownStr, textScale=4, textThickness=8)
         return countdownComplete
 
     def runGameStep(self):

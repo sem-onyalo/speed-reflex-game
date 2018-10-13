@@ -10,16 +10,34 @@ class CentreChallenge:
     startShowResultTime = None
     isObjectInPosition = False
     isWinning = False
+    defaultFont = None
 
     videoManager = None
     classToDetect = ""
 
     def __init__(self, videoManager, classToDetect):
-        self.videoManager = videoManager
+        self.defaultFont = videoManager.getDefaultFont()
         self.classToDetect = classToDetect
+        self.videoManager = videoManager
 
     def isObjectInMiddle(self, cols, rows, xLeft, yTop, xRight, yBottom):
         return abs(xLeft - (cols - xRight)) < self.trackingThreshold and abs(yTop - (rows - yBottom)) < self.trackingThreshold
+
+    def addText(self, text, textScale=1, textColor=(238,238,238), textThickness=2, menuColor=(155,109,29), showMenuBack=True, position='centre'):
+        textSize = self.videoManager.getTextSize(text, self.defaultFont, textScale, textThickness)
+        textWidth = textSize[0]
+        textHeight = textSize[1]
+        textX = int(round((self.videoManager.frameWidth - textWidth) / 2))
+        textY = int(round((self.videoManager.frameHeight - textHeight) / 2)) + textHeight
+        menuPadX = 15
+        menuPadY = 20
+        rectPt1X = textX - menuPadX
+        rectPt1Y = textY - textHeight - menuPadY
+        rectPt2X = textX + textWidth + menuPadX
+        rectPt2Y = textY + menuPadY
+        if showMenuBack:
+            self.videoManager.addRectangle((rectPt1X, rectPt1Y), (rectPt2X, rectPt2Y), menuColor, -1)
+        self.videoManager.addText(text, (textX, textY), self.defaultFont, textScale, textColor, textThickness)
 
     def updateGameParams(self):
         gameLabel = None
@@ -60,9 +78,7 @@ class CentreChallenge:
         self.isObjectInPosition = self.videoManager.labelDetections(self.classToDetect, trackingFunc, gameLabel)
 
         if gameLabel != None:
-            xPadding = 20 if gameLabel != self.winGameText else 200
-            gameLabelPt = (int(self.videoManager.frameWidth/2) - xPadding, int(self.videoManager.frameHeight/2))
-            self.videoManager.addText(gameLabel, gameLabelPt, self.videoManager.getDefaultFont(), 3, (255, 0, 0), thickness=7)
+            self.addText(gameLabel, textScale=3, textThickness=7)
 
         self.videoManager.showImage()
         return self.continueGame()

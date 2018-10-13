@@ -39,6 +39,9 @@ class VideoManager:
     def getKeyPress(self):
         return cv.waitKey(1)
 
+    def getTextSize(self, text, font, scale, thickness):
+        return cv.getTextSize(text, font, scale, thickness)[0]
+
     def showImage(self):
         cv.imshow(self.windowName, self.img)
 
