@@ -54,9 +54,15 @@ class CentreChallenge:
         return gameLabel
         
     def runGameStep(self, cmd):
+        continueRun = True
         self.videoManager.runDetection()
         gameLabel = self.updateGameParams()
         trackingFunc = lambda cols, rows, xLeft, yTop, xRight, yBottom : self.isObjectInMiddle(cols, rows, xLeft, yTop, xRight, yBottom)
-        
         self.isObjectInPosition = self.videoManager.labelDetections(self.classToDetect, trackingFunc, gameLabel)
-        return self.videoManager.getImage(), True
+
+        if gameLabel != None:
+            xPadding = 20 if gameLabel != self.winGameText else 200
+            gameLabelPt = (int(self.videoManager.frameWidth/2) - xPadding, int(self.videoManager.frameHeight/2))
+            self.videoManager.addText(gameLabel, gameLabelPt, self.videoManager.getDefaultFont(), 3, (255, 0, 0), thickness=7)
+
+        return self.videoManager.getImage(), continueRun

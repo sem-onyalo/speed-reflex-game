@@ -1,7 +1,6 @@
 import cv2 as cv
 
 class VideoManager:
-    centreChallengeWinGameText = 'YOU WIN!' # TEMP - TO BE REMOVED
     imgMargin = 60
     img = None
     netModel = None
@@ -20,7 +19,6 @@ class VideoManager:
         self.scoreThreshold = scoreThreshold
         self.trackingThreshold = trackingThreshold
         cv.namedWindow(windowName, cv.WINDOW_NORMAL)
-        # cv.setWindowProperty(windowName, cv.WND_PROP_FULLSCREEN, cv.WINDOW_FULLSCREEN)
         self.cvNet = cv.dnn.readNetFromTensorflow(self.netModel['modelPath'], self.netModel['configPath'])
         self.create_capture()
 
@@ -32,6 +30,20 @@ class VideoManager:
 
     def getYCoordDetectionDiff(self):
         return self.yBottomPos - self.yTopPos if self.yBottomPos != None and self.yTopPos != None else None
+
+    def getDefaultFont(self):
+        return cv.FONT_HERSHEY_SIMPLEX
+
+    def addText(self, text, pt, font, scale, color, thickness):
+        cv.putText(self.img, text, pt, font, scale, color, thickness, cv.LINE_AA)
+
+    def addRectangle(self, pt1, pt2, color, thickness, isFilled=False):
+        if isFilled:
+            thickness = cv.FILLED
+        cv.rectangle(self.img, pt1, pt2, color, thickness)
+
+    def addLine(self, pt1, pt2, color, thickness):
+        cv.line(self.img, pt1, pt2, color, thickness)
 
     def create_capture(self, source = 0):
         self.cap = cv.VideoCapture(source)
@@ -67,13 +79,8 @@ class VideoManager:
                 self.yBottomPos = int(detection[6] * rows)
                 isObjectInPosition = trackingFunc(cols, rows, self.xLeftPos, self.yTopPos, self.xRightPos, self.yBottomPos)
                 boxColor = (0, 255, 0) if isObjectInPosition else (0, 0, 255)
-                cv.rectangle(self.img, (self.xLeftPos, self.yTopPos), (self.xRightPos, self.yBottomPos), boxColor, thickness=6)
-        if label != None:
-            xPadding = 20
-            if label == self.centreChallengeWinGameText: # TODO: move this put text code into CentreChallenge class somehow
-                xPadding = 200
-            cv.putText(self.img, label, (int(cols/2) - xPadding, int(rows/2)), cv.FONT_HERSHEY_SIMPLEX, 3, (255, 0, 0), thickness=7)
+                self.addRectangle((self.xLeftPos, self.yTopPos), (self.xRightPos, self.yBottomPos), boxColor, 6)
 
-        # cv.line(self.img, (0,self.imgMargin), (cols,self.imgMargin), (0, 0, 255), thickness=2)
-        # cv.line(self.img, (0,rows-self.imgMargin), (cols,rows-self.imgMargin), (0, 0, 255), thickness=2)
+        # self.addLine((0,self.imgMargin), (cols,self.imgMargin), (0, 0, 255), 2)
+        # self.addLine((0,rows-self.imgMargin), (cols,rows-self.imgMargin), (0, 0, 255), 2)
         return isObjectInPosition
