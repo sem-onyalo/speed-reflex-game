@@ -53,8 +53,7 @@ class CentreChallenge:
             self.isWinning = True
         return gameLabel
         
-    def runGameStep(self, cmd):
-        continueRun = True
+    def runGameStep(self):
         self.videoManager.runDetection()
         gameLabel = self.updateGameParams()
         trackingFunc = lambda cols, rows, xLeft, yTop, xRight, yBottom : self.isObjectInMiddle(cols, rows, xLeft, yTop, xRight, yBottom)
@@ -65,4 +64,12 @@ class CentreChallenge:
             gameLabelPt = (int(self.videoManager.frameWidth/2) - xPadding, int(self.videoManager.frameHeight/2))
             self.videoManager.addText(gameLabel, gameLabelPt, self.videoManager.getDefaultFont(), 3, (255, 0, 0), thickness=7)
 
-        return self.videoManager.getImage(), continueRun
+        self.videoManager.showImage()
+        return self.continueGame()
+
+    def continueGame(self):
+        ch = self.videoManager.getKeyPress()
+        return ch != 27 # ESC
+
+    def shutdownGame(self):
+        self.videoManager.shutdown()

@@ -4,6 +4,7 @@ class VideoManager:
     imgMargin = 60
     img = None
     netModel = None
+    windowName = ""
     detections = None
     scoreThreshold = None
     trackingThreshold = None
@@ -16,9 +17,10 @@ class VideoManager:
 
     def __init__(self, windowName, netModel, scoreThreshold, trackingThreshold):
         self.netModel = netModel
+        self.windowName = windowName
         self.scoreThreshold = scoreThreshold
         self.trackingThreshold = trackingThreshold
-        cv.namedWindow(windowName, cv.WINDOW_NORMAL)
+        cv.namedWindow(self.windowName, cv.WINDOW_NORMAL)
         self.cvNet = cv.dnn.readNetFromTensorflow(self.netModel['modelPath'], self.netModel['configPath'])
         self.create_capture()
 
@@ -34,6 +36,12 @@ class VideoManager:
     def getDefaultFont(self):
         return cv.FONT_HERSHEY_SIMPLEX
 
+    def getKeyPress(self):
+        return cv.waitKey(1)
+
+    def showImage(self):
+        cv.imshow(self.windowName, self.img)
+
     def addText(self, text, pt, font, scale, color, thickness):
         cv.putText(self.img, text, pt, font, scale, color, thickness, cv.LINE_AA)
 
@@ -44,6 +52,9 @@ class VideoManager:
 
     def addLine(self, pt1, pt2, color, thickness):
         cv.line(self.img, pt1, pt2, color, thickness)
+
+    def shutdown(self):
+        cv.destroyAllWindows()
 
     def create_capture(self, source = 0):
         self.cap = cv.VideoCapture(source)

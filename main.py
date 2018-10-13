@@ -1,8 +1,6 @@
 #!/usr/bin/env python
 
 import argparse
-import cv2 as cv
-
 from games import CentreChallenge, SpotChallenge
 from managers import AudioManager, VideoManager
 
@@ -17,17 +15,6 @@ _netModels = [
     }
 ]
 
-def initGame(netModel, classToDetect, scoreThreshold, trackingThreshold, gameId):
-    videoManager = VideoManager.VideoManager(_gameName, netModel, scoreThreshold, trackingThreshold)
-    
-    if gameId == 1:
-        return CentreChallenge.CentreChallenge(videoManager, classToDetect)
-    elif gameId == 2:
-        audioManager = AudioManager.AudioManager()
-        return SpotChallenge.SpotChallenge(videoManager, audioManager, classToDetect)
-    else:
-        print('That is not a valid game')
-
 if __name__ == '__main__':
     netModelIdx = 0
     scoreThreshold = 0.3
@@ -35,22 +22,27 @@ if __name__ == '__main__':
     detectClassName = "red ball"
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("objective", type=int, help="The game to play: \
+    parser.add_argument("gameId", type=int, help="The game to play: \
         1 - Centre Challenge \
         2 - Spot Challenge")
     args = parser.parse_args()
 
-    game = initGame(_netModels[netModelIdx], detectClassName, scoreThreshold, trackingThreshold, args.objective)
+    videoManager = VideoManager.VideoManager(_gameName, _netModels[netModelIdx], scoreThreshold, trackingThreshold)
+    
+    if args.gameId == 1:
+        game = CentreChallenge.CentreChallenge(videoManager, detectClassName)
+    elif args.gameId == 2:
+        audioManager = AudioManager.AudioManager()
+        game = SpotChallenge.SpotChallenge(videoManager, audioManager, detectClassName)
+    else:
+        raise RuntimeError('Invalid game choice:', args.gameId)
     
     if game != None:
-        cmd = -1
         while True:
-            img, run = game.runGameStep(cmd)
-            cv.imshow(_gameName, img)
-            cmd = cv.waitKey(1)
-            if not run or cmd == 27: # ESC
+            run = game.runGameStep()
+            if not run:
                 break
 
-    print('exiting...')
-    cv.destroyAllWindows()
+        print('exiting...')
+        game.shutdownGame()
     

@@ -15,7 +15,7 @@ pip install dlib
 usage: main.py [-h] objective
 
 positional arguments:
-  objective: The game to play: 
+  gameId: The game to play: 
   1 - Centre Challenge
   2 - Spot Challenge
 

@@ -203,10 +203,14 @@ class SpotChallenge:
         self.videoManager.addText(countdownStr, (250, 270), self.defaultFont, 4, (0,255,255), 8)
         return countdownComplete
 
-    def runGameStep(self, cmd):
+    def runGameStep(self):
         continueRun = True
+        cmd = self.videoManager.getKeyPress()
 
-        if self.gameMode == self.gameModeAwaitingCalibrationConfirm:
+        if cmd == 27: # ESC
+            continueRun = False
+
+        elif self.gameMode == self.gameModeAwaitingCalibrationConfirm:
             self.videoManager.readNewFrame()
             self.showCalibrateMenu()
             if cmd == 67 or cmd == 99: # C or c
@@ -262,4 +266,8 @@ class SpotChallenge:
         else:
             raise RuntimeError('Game mode error, current game mode is', self.gameMode)
         
-        return self.videoManager.getImage(), continueRun
+        self.videoManager.showImage()
+        return continueRun
+
+    def shutdownGame(self):
+        self.videoManager.shutdown()
