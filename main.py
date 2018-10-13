@@ -25,9 +25,11 @@ if __name__ == '__main__':
     parser.add_argument("gameId", type=int, help="The game to play: \
         1 - Centre Challenge \
         2 - Spot Challenge")
+    parser.add_argument("--res", type=str, default="640,480", help="The resolution of the video. Default is \"640,480\"")
     args = parser.parse_args()
-
-    videoManager = VideoManager.VideoManager(_gameName, _netModels[netModelIdx], scoreThreshold, trackingThreshold)
+    
+    res = list(map(int, args.res.split(',')))
+    videoManager = VideoManager.VideoManager(_gameName, res[0], res[1], _netModels[netModelIdx], scoreThreshold, trackingThreshold)
     
     if args.gameId == 1:
         game = CentreChallenge.CentreChallenge(videoManager, detectClassName)

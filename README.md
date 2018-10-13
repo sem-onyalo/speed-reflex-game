@@ -21,12 +21,13 @@ positional arguments:
 
 optional arguments:
   -h, --help  show this help message and exit
+  --res RES   The resolution of the video. Default is "640,480".
 
 ### Example
 
 ```
 activate speed-reflex
-python main.py 1
+python main.py 1 --res "1280,800"
 ```
 
 ## Credits

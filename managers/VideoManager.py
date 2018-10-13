@@ -12,12 +12,12 @@ class VideoManager:
     xRightPos = None
     yTopPos = None
     yBottomPos = None
-    frameWidth = 640#1920
-    frameHeight = 480#1200
 
-    def __init__(self, windowName, netModel, scoreThreshold, trackingThreshold):
+    def __init__(self, windowName, frameWidth, frameHeight, netModel, scoreThreshold, trackingThreshold):
         self.netModel = netModel
         self.windowName = windowName
+        self.frameWidth = frameWidth
+        self.frameHeight = frameHeight
         self.scoreThreshold = scoreThreshold
         self.trackingThreshold = trackingThreshold
         cv.namedWindow(self.windowName, cv.WINDOW_NORMAL)
