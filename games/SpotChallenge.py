@@ -14,8 +14,6 @@ class SpotChallenge:
     rectPt2 = None
     currentRep = 0
     maxRep = 2
-    winLevel = False
-    winLevelElapsedTime = 0
     playerMode = None
     defaultFont = None
 
@@ -24,7 +22,9 @@ class SpotChallenge:
     calibrationMaxTime = 3
     countdownStartTime = None
     countdownMaxTime = 3
-    repStartTime = None
+    roundStartTime = None
+    roundElapsedTime = 0
+    roundFreezeTime = False
 
     # Game mode constants
     gameModeAwaitingCalibrationConfirm = 'AWCL'
@@ -79,6 +79,10 @@ class SpotChallenge:
         return rectPt1, rectPt2
     
     def getElapsedTimeStr(self, elapsedTime):
+        if self.roundFreezeTime:
+            if self.roundElapsedTime == 0:
+                self.roundElapsedTime = elapsedTime
+            elapsedTime = self.roundElapsedTime
         elapsedTimeStr = str(datetime.timedelta(seconds=elapsedTime))
         elapsedTimeStr = elapsedTimeStr[(elapsedTimeStr.index(':') + 1):]
         return elapsedTimeStr
@@ -112,31 +116,71 @@ class SpotChallenge:
             self.videoManager.addRectangle((rectPt1X, rectPt1Y), (rectPt2X, rectPt2Y), menuColor, -1)
         self.videoManager.addText(text, (textX, textY), self.defaultFont, textScale, textColor, textThickness)
 
-    def addOnePlayerGameStats(self, currentRep, maxRep, elapsedTimeStr):
+    def showOnePlayerGameStats(self, elapsedTime, maxRep, currentRep):
         widthPositionFactor = 3
         textColor = (114, 70, 20)
         titleScale = 1
-        titleThickness = 2
+        titleThickness = 3
         valueScale = 1.5
-        valueThickness = 3
+        valueThickness = 4
 
         timeTitle = 'TIME'
-        timeValue = elapsedTimeStr
         timeTitleTopPad = 10
         timeValueTopPad = timeTitleTopPad + 15
+        timeValue = self.getElapsedTimeStr(elapsedTime)
         timeTitleX, timeTitleY, _, timeTitleHeight = self.getTextPosition(timeTitle, self.defaultFont, titleScale, titleThickness, widthPositionFactor, heightPos='top')
         timeValueX, timeValueY, _, _ = self.getTextPosition(timeValue, self.defaultFont, valueScale, valueThickness, widthPositionFactor, heightPos='top')
         self.videoManager.addText(timeTitle, (timeTitleX, timeTitleY + timeTitleTopPad), self.defaultFont, titleScale, textColor, titleThickness)
         self.videoManager.addText(timeValue, (timeValueX, timeValueY + timeTitleHeight + timeValueTopPad), self.defaultFont, valueScale, textColor, valueThickness)
         
         progTitle = 'PROGRESS'
-        progValue = str(currentRep) + '/' + str(maxRep)
         progTitleTopPad = 10
         progValueTopPad = progTitleTopPad + 15
+        progValue = str(currentRep) + '/' + str(maxRep)
         progTitleX, progTitleY, _, progTitleHeight = self.getTextPosition(progTitle, self.defaultFont, titleScale, titleThickness, widthPositionFactor, widthPos='right', heightPos='top')
         progValueX, progValueY, _, _ = self.getTextPosition(progValue, self.defaultFont, valueScale, valueThickness, widthPositionFactor, widthPos='right', heightPos='top')
         self.videoManager.addText(progTitle, (progTitleX, progTitleY + progTitleTopPad), self.defaultFont, titleScale, textColor, titleThickness)
         self.videoManager.addText(progValue, (progValueX, progValueY + progTitleHeight + progValueTopPad), self.defaultFont, valueScale, textColor, valueThickness)
+    
+        if self.roundFreezeTime:
+            self.addText(timeValue, textScale=4, textThickness=8)
+
+    def showTwoPlayerGameStats(self, elapsedTime, maxRep, currentReps, splitLineThickness):
+        widthPositionFactor = 4
+        textColor = (114, 70, 20)
+        timeTitleScale = 2
+        timeTitleThickness = 5
+        timeValueScale = 3
+        timeValueThickness = 8
+        progTitleScale = 1
+        progTitleThickness = 3
+        progValueScale = 1.5
+        progValueThickness = 4
+        
+        timeTitle = 'TIME'
+        timeValue = self.getElapsedTimeStr(elapsedTime)
+        timeTitleTopPad = 10
+        timeValueTopPad = timeTitleTopPad + 15
+        timeTitleX, timeTitleY, _, timeTitleHeight = self.getTextPosition(timeTitle, self.defaultFont, timeTitleScale, timeTitleThickness, heightPos='top')
+        timeValueX, timeValueY, _, _ = self.getTextPosition(timeValue, self.defaultFont, timeValueScale, timeValueThickness, heightPos='top')
+        self.videoManager.addText(timeTitle, (timeTitleX, timeTitleY + timeTitleTopPad), self.defaultFont, timeTitleScale, textColor, timeTitleThickness)
+        self.videoManager.addText(timeValue, (timeValueX, timeValueY + timeTitleHeight + timeValueTopPad), self.defaultFont, timeValueScale, textColor, timeValueThickness)
+
+        progTitle = 'PROGRESS'
+        progTitleTopPad = 10
+        progValueTopPad = progTitleTopPad + 15
+        
+        progValueP1 = str(currentReps[0]) + '/' + str(maxRep)
+        progTitleP1X, progTitleP1Y, _, progTitleP1Height = self.getTextPosition(progTitle, self.defaultFont, progTitleScale, progTitleThickness, widthPositionFactor, heightPos='top')
+        progValueP1X, progValueP1Y, _, _ = self.getTextPosition(progValueP1, self.defaultFont, progValueScale, progValueThickness, widthPositionFactor, heightPos='top')
+        self.videoManager.addText(progTitle, (progTitleP1X, progTitleP1Y + progTitleTopPad), self.defaultFont, progTitleScale, textColor, progTitleThickness)
+        self.videoManager.addText(progValueP1, (progValueP1X, progValueP1Y + progTitleP1Height + progValueTopPad), self.defaultFont, progValueScale, textColor, progValueThickness)
+
+        progValueP2 = str(currentReps[1]) + '/' + str(maxRep)
+        progTitleP2X, progTitleP2Y, _, progTitleP2Height = self.getTextPosition(progTitle, self.defaultFont, progTitleScale, progTitleThickness, widthPositionFactor, widthPos='right', heightPos='top')
+        progValueP2X, progValueP2Y, _, _ = self.getTextPosition(progValueP2, self.defaultFont, progValueScale, progValueThickness, widthPositionFactor, widthPos='right', heightPos='top')
+        self.videoManager.addText(progTitle, (progTitleP2X, progTitleP2Y + progTitleTopPad), self.defaultFont, progTitleScale, textColor, progTitleThickness)
+        self.videoManager.addText(progValueP2, (progValueP2X, progValueP2Y + progTitleP2Height + progValueTopPad), self.defaultFont, progValueScale, textColor, progValueThickness)
 
     def showCalibrateMenu(self):
         text = "Press 'C' to calibrate"
@@ -177,55 +221,43 @@ class SpotChallenge:
 
         return calibrationComplete
 
-    def updateGameParams(self):
+    def updateGameParams(self, playerMode):
         labelDetections = True
         isRoundComplete = False
-        boxColor = (0, 255, 255)
-        elapsedTime = int(time.time() - self.repStartTime) if self.repStartTime != None else 0
-        elapsedTimeStr = self.getElapsedTimeStr(elapsedTime)
-        if self.rectPt1 == None or self.rectPt2 == None: # initial state, on first run
-            self.repStartTime = time.time()
-            self.rectPt1, self.rectPt2 = self.getRectanglePts()
-        elif self.showResult:
-            boxColor = (0, 255, 0)
-            if self.winLevel:
-                elapsedTime = self.winLevelElapsedTime
-                elapsedTimeStr = self.getElapsedTimeStr(elapsedTime)
-                if not self.audioManager.audioStatus[self.audioManager.winLevelAudioKey]:
-                    isRoundComplete = True
-                    # reset game vars
+        if playerMode == 1:
+            boxColor = (0, 255, 255)
+            if self.rectPt1 == None or self.rectPt2 == None: # initial state, on first run
+                self.rectPt1, self.rectPt2 = self.getRectanglePts()
+            elif self.showResult:
+                boxColor = (0, 255, 0)
+                if self.roundFreezeTime:
+                    if not self.audioManager.audioStatus[self.audioManager.winLevelAudioKey]:
+                        isRoundComplete = True
+                        # reset game vars
+                        self.rectPt1, self.rectPt2 = self.getRectanglePts()
+                        self.showResult = False
+                        self.currentRep = 0
+                    else:
+                        labelDetections = False
+                elif not self.audioManager.audioStatus[self.audioManager.winItemAudioKey]:
                     self.rectPt1, self.rectPt2 = self.getRectanglePts()
-                    self.repStartTime = time.time()
-                    self.winLevelElapsedTime = 0
                     self.showResult = False
-                    self.playerMode = None
-                    self.winLevel = False
-                    self.currentRep = 0
                 else:
                     labelDetections = False
-            elif not self.audioManager.audioStatus[self.audioManager.winItemAudioKey]:
-                self.rectPt1, self.rectPt2 = self.getRectanglePts()
-                self.showResult = False
-            else:
+            elif self.isObjectInPosition:
+                boxColor = (0, 255, 0)
                 labelDetections = False
-        elif self.isObjectInPosition:
-            boxColor = (0, 255, 0)
-            labelDetections = False
-            self.currentRep = self.currentRep + 1
-            self.isObjectInPosition = False
-            self.showResult = True
-            if self.currentRep == self.maxRep:
-                self.winLevel = True
-                self.winLevelElapsedTime = elapsedTime
-                self.audioManager.playAudio(self.audioManager.winLevelAudioKey)
-            else:
-                self.audioManager.playAudio(self.audioManager.winItemAudioKey)
-        
-        self.addOnePlayerGameStats(self.currentRep, self.maxRep, elapsedTimeStr)
-        if not self.winLevel:
-            self.videoManager.addRectangle(self.rectPt1, self.rectPt2, boxColor, 6)
-        else:
-            self.addText(elapsedTimeStr, textScale=4, textThickness=8)
+                self.currentRep = self.currentRep + 1
+                self.isObjectInPosition = False
+                self.showResult = True
+                if self.currentRep == self.maxRep:
+                    self.roundFreezeTime = True
+                    self.audioManager.playAudio(self.audioManager.winLevelAudioKey)
+                else:
+                    self.audioManager.playAudio(self.audioManager.winItemAudioKey)
+            
+            if not self.roundFreezeTime:
+                self.videoManager.addRectangle(self.rectPt1, self.rectPt2, boxColor, 6)
 
         return isRoundComplete, labelDetections
 
@@ -244,6 +276,23 @@ class SpotChallenge:
                 countdownStr = str(self.countdownMaxTime - int(currentTime - self.countdownStartTime))
         self.addText(countdownStr, textScale=4, textThickness=8)
         return countdownComplete
+
+    def runGameStepByPlayerMode(self, playerMode, elapsedTime, labelDetections):
+        if self.playerMode == 1:
+            trackingFunc = lambda cols, rows, xLeft, yTop, xRight, yBottom : self.isObjectInSpot(cols, rows, xLeft, yTop, xRight, yBottom)
+            if labelDetections:
+                self.isObjectInPosition = self.videoManager.labelDetections(self.classToDetect, trackingFunc)
+            self.showOnePlayerGameStats(elapsedTime, self.maxRep, self.currentRep)
+
+        elif self.playerMode == 2:
+            splitLineThickness = 10
+            currentReps = [0, 0]
+            trackingFunc = lambda cols, rows, xLeft, yTop, xRight, yBottom : False
+            splitLinePt1 = (int(self.videoManager.frameWidth/2), 0)
+            splitLinePt2 = (int(self.videoManager.frameWidth/2), self.videoManager.frameHeight)
+            self.videoManager.addLine(splitLinePt1, splitLinePt2, (255, 255, 255), thickness=splitLineThickness)
+            self.videoManager.labelDetections(self.classToDetect, trackingFunc)
+            self.showTwoPlayerGameStats(elapsedTime, self.maxRep, currentReps, splitLineThickness=splitLineThickness)
 
     def runGameStep(self):
         continueRun = True
@@ -283,25 +332,20 @@ class SpotChallenge:
             self.videoManager.readNewFrame()
             isCountdownComplete = self.runGameCountdown()
             if isCountdownComplete:
+                self.roundElapsedTime = 0
+                self.roundFreezeTime = False
+                self.roundStartTime = time.time()
                 self.gameMode = self.gameModePlay
                 print('Switching game mode:', self.gameMode)
 
         elif self.gameMode == self.gameModePlay:
+            elapsedTime = int(time.time() - self.roundStartTime)
             self.videoManager.runDetection()
-            if self.playerMode == 1:
-                isRoundComplete, labelDetections = self.updateGameParams()
-                trackingFunc = lambda cols, rows, xLeft, yTop, xRight, yBottom : self.isObjectInSpot(cols, rows, xLeft, yTop, xRight, yBottom)
-                if labelDetections:
-                    self.isObjectInPosition = self.videoManager.labelDetections(self.classToDetect, trackingFunc)
-                if isRoundComplete:
-                    self.gameMode = self.gameModeAwaitingPlayConfirm
-                    print('Switching game mode:', self.gameMode)
-            elif self.playerMode == 2:
-                trackingFunc = lambda cols, rows, xLeft, yTop, xRight, yBottom : False
-                splitLinePt1 = (int(self.videoManager.frameWidth/2), 0)
-                splitLinePt2 = (int(self.videoManager.frameWidth/2), self.videoManager.frameHeight)
-                self.videoManager.addLine(splitLinePt1, splitLinePt2, (255, 255, 255), thickness=10)
-                self.videoManager.labelDetections(self.classToDetect, trackingFunc)
+            isRoundComplete, labelDetections = self.updateGameParams(self.playerMode)
+            self.runGameStepByPlayerMode(self.playerMode, elapsedTime, labelDetections)
+            if isRoundComplete:
+                self.gameMode = self.gameModeAwaitingPlayConfirm
+                print('Switching game mode:', self.gameMode)
 
         elif self.gameMode == self.gameModeAwaitingPlayConfirm:
             self.videoManager.readNewFrame()
