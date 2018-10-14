@@ -112,7 +112,7 @@ class SpotChallenge:
             self.videoManager.addRectangle((rectPt1X, rectPt1Y), (rectPt2X, rectPt2Y), menuColor, -1)
         self.videoManager.addText(text, (textX, textY), self.defaultFont, textScale, textColor, textThickness)
 
-    def addTextGameStats(self, currentRep, maxRep, elapsedTimeStr):
+    def addOnePlayerGameStats(self, currentRep, maxRep, elapsedTimeStr):
         widthPositionFactor = 3
         textColor = (114, 70, 20)
         titleScale = 1
@@ -221,7 +221,7 @@ class SpotChallenge:
             else:
                 self.audioManager.playAudio(self.audioManager.winItemAudioKey)
         
-        self.addTextGameStats(self.currentRep, self.maxRep, elapsedTimeStr)
+        self.addOnePlayerGameStats(self.currentRep, self.maxRep, elapsedTimeStr)
         if not self.winLevel:
             self.videoManager.addRectangle(self.rectPt1, self.rectPt2, boxColor, 6)
         else:
@@ -288,13 +288,20 @@ class SpotChallenge:
 
         elif self.gameMode == self.gameModePlay:
             self.videoManager.runDetection()
-            isRoundComplete, labelDetections = self.updateGameParams()
-            trackingFunc = lambda cols, rows, xLeft, yTop, xRight, yBottom : self.isObjectInSpot(cols, rows, xLeft, yTop, xRight, yBottom)
-            if labelDetections:
-                self.isObjectInPosition = self.videoManager.labelDetections(self.classToDetect, trackingFunc)
-            if isRoundComplete:
-                self.gameMode = self.gameModeAwaitingPlayConfirm
-                print('Switching game mode:', self.gameMode)
+            if self.playerMode == 1:
+                isRoundComplete, labelDetections = self.updateGameParams()
+                trackingFunc = lambda cols, rows, xLeft, yTop, xRight, yBottom : self.isObjectInSpot(cols, rows, xLeft, yTop, xRight, yBottom)
+                if labelDetections:
+                    self.isObjectInPosition = self.videoManager.labelDetections(self.classToDetect, trackingFunc)
+                if isRoundComplete:
+                    self.gameMode = self.gameModeAwaitingPlayConfirm
+                    print('Switching game mode:', self.gameMode)
+            elif self.playerMode == 2:
+                trackingFunc = lambda cols, rows, xLeft, yTop, xRight, yBottom : False
+                splitLinePt1 = (int(self.videoManager.frameWidth/2), 0)
+                splitLinePt2 = (int(self.videoManager.frameWidth/2), self.videoManager.frameHeight)
+                self.videoManager.addLine(splitLinePt1, splitLinePt2, (255, 255, 255), thickness=10)
+                self.videoManager.labelDetections(self.classToDetect, trackingFunc)
 
         elif self.gameMode == self.gameModeAwaitingPlayConfirm:
             self.videoManager.readNewFrame()
