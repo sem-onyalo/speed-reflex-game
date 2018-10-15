@@ -88,6 +88,7 @@ class SpotChallenge:
         return elapsedTimeStr
 
     def getTextPosition(self, text, textFont, textScale, textThickness, widthFactor=1, widthPos='centre', heightPos='centre'):
+        topPad = 30 #self.videoManager.imgMargin
         textSize = self.videoManager.getTextSize(text, self.defaultFont, textScale, textThickness)
         textWidth = textSize[0]
         textHeight = textSize[1]
@@ -98,7 +99,7 @@ class SpotChallenge:
             textX = int(round((self.videoManager.frameWidth / widthFactor - textWidth) / 2))
 
         if heightPos == 'top':
-            textY = self.videoManager.imgMargin + textHeight
+            textY = topPad + textHeight
         else: # elif heightPos == 'centre'
             textY = int(round((self.videoManager.frameHeight - textHeight) / 2)) + textHeight
 
@@ -162,7 +163,7 @@ class SpotChallenge:
         timeTitleTopPad = 10
         timeValueTopPad = timeTitleTopPad + 15
         timeTitleX, timeTitleY, _, timeTitleHeight = self.getTextPosition(timeTitle, self.defaultFont, timeTitleScale, timeTitleThickness, heightPos='top')
-        timeValueX, timeValueY, _, _ = self.getTextPosition(timeValue, self.defaultFont, timeValueScale, timeValueThickness, heightPos='top')
+        timeValueX, timeValueY, _, timeValueHeight = self.getTextPosition(timeValue, self.defaultFont, timeValueScale, timeValueThickness, heightPos='top')
         self.videoManager.addText(timeTitle, (timeTitleX, timeTitleY + timeTitleTopPad), self.defaultFont, timeTitleScale, textColor, timeTitleThickness)
         self.videoManager.addText(timeValue, (timeValueX, timeValueY + timeTitleHeight + timeValueTopPad), self.defaultFont, timeValueScale, textColor, timeValueThickness)
 
@@ -181,6 +182,13 @@ class SpotChallenge:
         progValueP2X, progValueP2Y, _, _ = self.getTextPosition(progValueP2, self.defaultFont, progValueScale, progValueThickness, widthPositionFactor, widthPos='right', heightPos='top')
         self.videoManager.addText(progTitle, (progTitleP2X, progTitleP2Y + progTitleTopPad), self.defaultFont, progTitleScale, textColor, progTitleThickness)
         self.videoManager.addText(progValueP2, (progValueP2X, progValueP2Y + progTitleP2Height + progValueTopPad), self.defaultFont, progValueScale, textColor, progValueThickness)
+        
+        splitLine1Pt1 = (int(self.videoManager.frameWidth/2), 0)
+        splitLine1Pt2 = (int(self.videoManager.frameWidth/2), timeTitleY - timeTitleHeight - 5)
+        splitLine2Pt1 = (int(self.videoManager.frameWidth/2), timeValueY + timeValueHeight + 30)
+        splitLine2Pt2 = (int(self.videoManager.frameWidth/2), int(self.videoManager.frameHeight))
+        self.videoManager.addLine(splitLine1Pt1, splitLine1Pt2, (255, 255, 255), thickness=self.twoPlayerSplitLineThickness)
+        self.videoManager.addLine(splitLine2Pt1, splitLine2Pt2, (255, 255, 255), thickness=self.twoPlayerSplitLineThickness)
 
     def showTwoPlayerLabels(self, isObjectInPosition, className, xLeftPos, yTopPos, xRightPos, yBottomPos):
         thickness = 6
@@ -311,11 +319,8 @@ class SpotChallenge:
             currentReps = [0, 0]
             trackingFunc = lambda cols, rows, xLeft, yTop, xRight, yBottom : False
             labellingFunc = lambda isInPosition, className, xLeft, yTop, xRight, yBottom : self.showTwoPlayerLabels(isInPosition, className, xLeft, yTop, xRight, yBottom)
-            splitLinePt1 = (int(self.videoManager.frameWidth/2), 0)
-            splitLinePt2 = (int(self.videoManager.frameWidth/2), self.videoManager.frameHeight)
-            self.videoManager.addLine(splitLinePt1, splitLinePt2, (255, 255, 255), thickness=self.twoPlayerSplitLineThickness)
-            self.videoManager.labelDetections(self.classesToDetect, trackingFunc, labellingFunc)
             self.showTwoPlayerGameStats(elapsedTime, self.maxRep, currentReps)
+            self.videoManager.labelDetections(self.classesToDetect, trackingFunc, labellingFunc)
 
     def runGameStep(self):
         continueRun = True
