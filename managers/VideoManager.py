@@ -75,7 +75,7 @@ class VideoManager:
         self.cvNet.setInput(cv.dnn.blobFromImage(self.img, 1.0/127.5, (300, 300), (127.5, 127.5, 127.5), swapRB=True, crop=False))
         self.detections = self.cvNet.forward()
 
-    def labelDetections(self, classNames, trackingFunc, label=None):
+    def labelDetections(self, classNames, trackingFunc):
         rows = self.img.shape[0]
         cols = self.img.shape[1]
         isObjectInPosition = False
