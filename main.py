@@ -19,7 +19,6 @@ if __name__ == '__main__':
     netModelIdx = 0
     scoreThreshold = 0.3
     trackingThreshold = 50
-    detectClassName = "red ball"
 
     parser = argparse.ArgumentParser()
     parser.add_argument("gameId", type=int, help="The game to play: \
@@ -32,10 +31,10 @@ if __name__ == '__main__':
     videoManager = VideoManager.VideoManager(_gameName, res[0], res[1], _netModels[netModelIdx], scoreThreshold, trackingThreshold)
     
     if args.gameId == 1:
-        game = CentreChallenge.CentreChallenge(videoManager, detectClassName)
+        game = CentreChallenge.CentreChallenge(videoManager)
     elif args.gameId == 2:
         audioManager = AudioManager.AudioManager()
-        game = SpotChallenge.SpotChallenge(videoManager, audioManager, detectClassName)
+        game = SpotChallenge.SpotChallenge(videoManager, audioManager)
     else:
         raise RuntimeError('Invalid game choice:', args.gameId)
     

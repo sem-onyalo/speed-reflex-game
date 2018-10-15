@@ -2,6 +2,7 @@ import time
 
 class CentreChallenge:
     winGameText = 'YOU WIN!'
+    classToDetect = "red ball"
     trackingThreshold = 50
     maxTime = 5
     showResultMaxTime = 3
@@ -13,11 +14,9 @@ class CentreChallenge:
     defaultFont = None
 
     videoManager = None
-    classToDetect = ""
 
-    def __init__(self, videoManager, classToDetect):
+    def __init__(self, videoManager):
         self.defaultFont = videoManager.getDefaultFont()
-        self.classToDetect = classToDetect
         self.videoManager = videoManager
 
     def isObjectInMiddle(self, cols, rows, xLeft, yTop, xRight, yBottom):
