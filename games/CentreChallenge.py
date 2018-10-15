@@ -74,7 +74,7 @@ class CentreChallenge:
         self.videoManager.runDetection()
         gameLabel = self.updateGameParams()
         trackingFunc = lambda cols, rows, xLeft, yTop, xRight, yBottom : self.isObjectInMiddle(cols, rows, xLeft, yTop, xRight, yBottom)
-        self.isObjectInPosition = self.videoManager.labelDetections(self.classToDetect, trackingFunc, gameLabel)
+        self.isObjectInPosition = self.videoManager.labelDetections([self.classToDetect], trackingFunc, gameLabel)
 
         if gameLabel != None:
             self.addText(gameLabel, textScale=3, textThickness=7)

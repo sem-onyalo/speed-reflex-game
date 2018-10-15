@@ -280,7 +280,7 @@ class SpotChallenge:
         if self.playerMode == 1:
             trackingFunc = lambda cols, rows, xLeft, yTop, xRight, yBottom : self.isObjectInSpot(cols, rows, xLeft, yTop, xRight, yBottom)
             if labelDetections:
-                self.isObjectInPosition = self.videoManager.labelDetections(self.classesToDetect[0], trackingFunc)
+                self.isObjectInPosition = self.videoManager.labelDetections(self.classesToDetect[0:1], trackingFunc)
             self.showOnePlayerGameStats(elapsedTime, self.maxRep, self.currentRep)
 
         elif self.playerMode == 2:
@@ -290,7 +290,7 @@ class SpotChallenge:
             splitLinePt1 = (int(self.videoManager.frameWidth/2), 0)
             splitLinePt2 = (int(self.videoManager.frameWidth/2), self.videoManager.frameHeight)
             self.videoManager.addLine(splitLinePt1, splitLinePt2, (255, 255, 255), thickness=splitLineThickness)
-            self.videoManager.labelDetections(self.classesToDetect[0], trackingFunc)
+            self.videoManager.labelDetections(self.classesToDetect[0:1], trackingFunc)
             self.showTwoPlayerGameStats(elapsedTime, self.maxRep, currentReps, splitLineThickness=splitLineThickness)
 
     def runGameStep(self):
@@ -311,7 +311,7 @@ class SpotChallenge:
             self.videoManager.runDetection()
             isCalibrationComplete = self.updateCalibrationParams()
             trackingFunc = lambda cols, rows, xLeft, yTop, xRight, yBottom : False
-            self.videoManager.labelDetections(self.classesToDetect[0], trackingFunc)
+            self.videoManager.labelDetections(self.classesToDetect[0:1], trackingFunc)
             if isCalibrationComplete:
                 self.gameMode = self.gameModeGetPlayers
                 print('Switching game mode:', self.gameMode)

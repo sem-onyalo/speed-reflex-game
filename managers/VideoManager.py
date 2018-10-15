@@ -75,7 +75,7 @@ class VideoManager:
         self.cvNet.setInput(cv.dnn.blobFromImage(self.img, 1.0/127.5, (300, 300), (127.5, 127.5, 127.5), swapRB=True, crop=False))
         self.detections = self.cvNet.forward()
 
-    def labelDetections(self, className, trackingFunc, label=None):
+    def labelDetections(self, classNames, trackingFunc, label=None):
         rows = self.img.shape[0]
         cols = self.img.shape[1]
         isObjectInPosition = False
@@ -86,7 +86,7 @@ class VideoManager:
         for detection in self.detections[0,0,:,:]:
             score = float(detection[2])
             class_id = int(detection[1])
-            if score > self.scoreThreshold and className == self.netModel['classNames'][class_id]:
+            if score > self.scoreThreshold and self.netModel['classNames'][class_id] in classNames:
                 self.xLeftPos = int(detection[3] * cols) # marginLeft
                 self.yTopPos = int(detection[4] * rows) # marginTop
                 self.xRightPos = int(detection[5] * cols)
