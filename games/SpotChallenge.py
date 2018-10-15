@@ -16,6 +16,7 @@ class SpotChallenge:
     maxRep = 2
     playerMode = None
     defaultFont = None
+    twoPlayerSplitLineThickness = 10
 
     # Timer vars
     calibrationStartTime = None
@@ -46,7 +47,7 @@ class SpotChallenge:
         self.audioManager = audioManager
         self.videoManager = videoManager
 
-    def isObjectInSpot(self, cols, rows, xLeft, yTop, xRight, yBottom):
+    def checkOnePlayerObjectInPosition(self, cols, rows, xLeft, yTop, xRight, yBottom):
         xLeftDiff = abs(xLeft - self.rectPt1[0])
         yTopDiff = abs(yTop - self.rectPt1[1])
         xRightDiff = abs(xRight - self.rectPt2[0])
@@ -144,7 +145,7 @@ class SpotChallenge:
         if self.roundFreezeTime:
             self.addText(timeValue, textScale=4, textThickness=8)
 
-    def showTwoPlayerGameStats(self, elapsedTime, maxRep, currentReps, splitLineThickness):
+    def showTwoPlayerGameStats(self, elapsedTime, maxRep, currentReps):
         widthPositionFactor = 4
         textColor = (114, 70, 20)
         timeTitleScale = 2
@@ -180,6 +181,29 @@ class SpotChallenge:
         progValueP2X, progValueP2Y, _, _ = self.getTextPosition(progValueP2, self.defaultFont, progValueScale, progValueThickness, widthPositionFactor, widthPos='right', heightPos='top')
         self.videoManager.addText(progTitle, (progTitleP2X, progTitleP2Y + progTitleTopPad), self.defaultFont, progTitleScale, textColor, progTitleThickness)
         self.videoManager.addText(progValueP2, (progValueP2X, progValueP2Y + progTitleP2Height + progValueTopPad), self.defaultFont, progValueScale, textColor, progValueThickness)
+
+    def showTwoPlayerLabels(self, isObjectInPosition, className, xLeftPos, yTopPos, xRightPos, yBottomPos):
+        thickness = 6
+        middlePos = int(round(self.videoManager.frameWidth/2))
+        middlePosPad = int(round(self.twoPlayerSplitLineThickness/2))
+        redBallPositionThreshold = middlePos - middlePosPad
+        blueBallPositionThreshold = middlePos + middlePosPad
+        boxColor = (255,0,255)
+        if isObjectInPosition:
+            boxColor = (0, 255, 0) if isObjectInPosition else (0, 0, 255)
+        elif className == self.classesToDetect[0]: # red ball
+            boxColor = (0, 0, 255)
+            if xLeftPos > redBallPositionThreshold:
+                thickness = 0
+            elif xRightPos > redBallPositionThreshold:
+                xRightPos = redBallPositionThreshold
+        elif className == self.classesToDetect[1]: # blue ball
+            boxColor = (255, 0, 0)
+            if xRightPos < blueBallPositionThreshold:
+                thickness = 0
+            elif xLeftPos < blueBallPositionThreshold:
+                xLeftPos = blueBallPositionThreshold
+        return (xLeftPos, yTopPos), (xRightPos, yBottomPos), boxColor, thickness
 
     def showCalibrateMenu(self):
         text = "Press 'C' to calibrate"
@@ -278,20 +302,20 @@ class SpotChallenge:
 
     def runGamePlay(self, playerMode, elapsedTime, labelDetections):
         if self.playerMode == 1:
-            trackingFunc = lambda cols, rows, xLeft, yTop, xRight, yBottom : self.isObjectInSpot(cols, rows, xLeft, yTop, xRight, yBottom)
+            trackingFunc = lambda cols, rows, xLeft, yTop, xRight, yBottom : self.checkOnePlayerObjectInPosition(cols, rows, xLeft, yTop, xRight, yBottom)
             if labelDetections:
                 self.isObjectInPosition = self.videoManager.labelDetections(self.classesToDetect[0:1], trackingFunc)
             self.showOnePlayerGameStats(elapsedTime, self.maxRep, self.currentRep)
 
         elif self.playerMode == 2:
-            splitLineThickness = 10
             currentReps = [0, 0]
             trackingFunc = lambda cols, rows, xLeft, yTop, xRight, yBottom : False
+            labellingFunc = lambda isInPosition, className, xLeft, yTop, xRight, yBottom : self.showTwoPlayerLabels(isInPosition, className, xLeft, yTop, xRight, yBottom)
             splitLinePt1 = (int(self.videoManager.frameWidth/2), 0)
             splitLinePt2 = (int(self.videoManager.frameWidth/2), self.videoManager.frameHeight)
-            self.videoManager.addLine(splitLinePt1, splitLinePt2, (255, 255, 255), thickness=splitLineThickness)
-            self.videoManager.labelDetections(self.classesToDetect[0:1], trackingFunc)
-            self.showTwoPlayerGameStats(elapsedTime, self.maxRep, currentReps, splitLineThickness=splitLineThickness)
+            self.videoManager.addLine(splitLinePt1, splitLinePt2, (255, 255, 255), thickness=self.twoPlayerSplitLineThickness)
+            self.videoManager.labelDetections(self.classesToDetect, trackingFunc, labellingFunc)
+            self.showTwoPlayerGameStats(elapsedTime, self.maxRep, currentReps)
 
     def runGameStep(self):
         continueRun = True
