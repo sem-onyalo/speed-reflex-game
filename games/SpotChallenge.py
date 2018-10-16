@@ -26,6 +26,10 @@ class SpotChallenge:
     roundStartTime = None
     roundElapsedTime = 0
     roundFreezeTime = False
+    winItemSleepStartTime = None
+    winItemSleepMaxTime = 0.5
+    winRoundSleepStartTime = None
+    winRoundSleepMaxTime = 7
 
     # Game mode constants
     gameModeAwaitingCalibrationConfirm = 'AWCL'
@@ -261,30 +265,34 @@ class SpotChallenge:
                 self.rectPt1, self.rectPt2 = self.getRectanglePts()
             elif self.showResult:
                 boxColor = (0, 255, 0)
-                if self.roundFreezeTime:
-                    if not self.audioManager.audioStatus[self.audioManager.winLevelAudioKey]:
-                        isRoundComplete = True
-                        # reset game vars
-                        self.rectPt1, self.rectPt2 = self.getRectanglePts()
-                        self.showResult = False
-                        self.currentRep = 0
-                    else:
-                        labelDetections = False
-                elif not self.audioManager.audioStatus[self.audioManager.winItemAudioKey]:
-                    self.rectPt1, self.rectPt2 = self.getRectanglePts()
-                    self.showResult = False
-                else:
+                continueToSleep = True
+                currentTime = time.time()
+                if self.roundFreezeTime and self.winRoundSleepStartTime != None and currentTime - self.winRoundSleepStartTime > self.winRoundSleepMaxTime:
+                    self.winRoundSleepStartTime = None
+                    self.roundFreezeTime = False
+                    self.currentRep = 0
+                    continueToSleep = False
+                    isRoundComplete = True
+                elif self.winItemSleepStartTime != None and currentTime - self.winItemSleepStartTime > self.winItemSleepMaxTime:
+                    self.winItemSleepStartTime = None
+                    continueToSleep = False
+                if continueToSleep:
                     labelDetections = False
+                else:
+                    self.showResult = False
+                    self.rectPt1, self.rectPt2 = self.getRectanglePts()
             elif self.isObjectInPosition:
                 boxColor = (0, 255, 0)
-                labelDetections = False
-                self.currentRep = self.currentRep + 1
-                self.isObjectInPosition = False
                 self.showResult = True
+                labelDetections = False
+                self.isObjectInPosition = False
+                self.currentRep = self.currentRep + 1
                 if self.currentRep == self.maxRep:
                     self.roundFreezeTime = True
+                    self.winRoundSleepStartTime = time.time()
                     self.audioManager.playAudio(self.audioManager.winLevelAudioKey)
                 else:
+                    self.winItemSleepStartTime = time.time()
                     self.audioManager.playAudio(self.audioManager.winItemAudioKey)
             
             if not self.roundFreezeTime:
@@ -361,7 +369,6 @@ class SpotChallenge:
             isCountdownComplete = self.runGameCountdown()
             if isCountdownComplete:
                 self.roundElapsedTime = 0
-                self.roundFreezeTime = False
                 self.roundStartTime = time.time()
                 self.gameMode = self.gameModePlay
                 print('Switching game mode:', self.gameMode)
