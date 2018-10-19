@@ -1,6 +1,7 @@
 import datetime
 import random
 import time
+from core import Point, Rectangle
 
 class SpotChallenge:
     trackingThreshold = 20
@@ -10,8 +11,7 @@ class SpotChallenge:
     maxObjectSize = None
     calibrationStep = 1
     calibrationSubStep = 1
-    rectPt1 = None
-    rectPt2 = None
+    gameRectangles = [None, None]
     currentRep = 0
     maxRep = 2
     playerMode = None
@@ -52,35 +52,30 @@ class SpotChallenge:
         self.videoManager = videoManager
 
     def checkOnePlayerObjectInPosition(self, cols, rows, xLeft, yTop, xRight, yBottom):
-        xLeftDiff = abs(xLeft - self.rectPt1[0])
-        yTopDiff = abs(yTop - self.rectPt1[1])
-        xRightDiff = abs(xRight - self.rectPt2[0])
-        yBottomDiff = abs(yBottom - self.rectPt2[1])
+        xLeftDiff = abs(xLeft - self.gameRectangles[0].pt1.x)
+        yTopDiff = abs(yTop - self.gameRectangles[0].pt1.y)
+        xRightDiff = abs(xRight - self.gameRectangles[0].pt2.x)
+        yBottomDiff = abs(yBottom - self.gameRectangles[0].pt2.y)
         isObjectInPosition = xLeftDiff < self.trackingThreshold and yTopDiff < self.trackingThreshold and xRightDiff < self.trackingThreshold and yBottomDiff < self.trackingThreshold
         return isObjectInPosition
 
-    def getRectanglePts(self):
-        maxWidth = self.videoManager.frameWidth
-        minHeight = self.videoManager.imgMargin
-        maxHeight = self.videoManager.frameHeight - self.videoManager.imgMargin
-        size = self.minObjectSize # size = random.randint(self.minObjectSize, self.maxObjectSize)
+    def getGameRectangle(self, maxWidth, maxHeight, minSize):
         widthPt = random.randint(0, maxWidth)
-        heightPt = random.randint(minHeight, maxHeight)
-        if widthPt + size > maxWidth:
+        heightPt = random.randint(0, maxHeight)
+        if widthPt + minSize > maxWidth:
             xRight = widthPt
-            xLeft = widthPt - size
+            xLeft = widthPt - minSize
         else:
             xLeft = widthPt
-            xRight = widthPt + size
-        if heightPt + size > maxHeight:
+            xRight = widthPt + minSize
+        if heightPt + minSize > maxHeight:
             yBottom = heightPt
-            yTop = heightPt - size
+            yTop = heightPt - minSize
         else:
             yTop = heightPt
-            yBottom = heightPt + size
-        rectPt1 = (xLeft, yTop)
-        rectPt2 = (xRight, yBottom)
-        return rectPt1, rectPt2
+            yBottom = heightPt + minSize
+        rect = Rectangle.Rectangle(Point.Point(xLeft,yTop), Point.Point(xRight,yBottom))
+        return rect
     
     def getElapsedTimeStr(self, elapsedTime):
         if self.roundFreezeTime:
@@ -261,8 +256,8 @@ class SpotChallenge:
         isRoundComplete = False
         if playerMode == 1:
             boxColor = (0, 255, 255)
-            if self.rectPt1 == None or self.rectPt2 == None: # initial state, on first run
-                self.rectPt1, self.rectPt2 = self.getRectanglePts()
+            if self.gameRectangles[0] == None: # initial state, on first run
+                self.gameRectangles[0] = self.getGameRectangle(self.videoManager.frameWidth, self.videoManager.frameHeight, self.minObjectSize)
             elif self.showResult:
                 boxColor = (0, 255, 0)
                 continueToSleep = True
@@ -280,7 +275,7 @@ class SpotChallenge:
                     labelDetections = False
                 else:
                     self.showResult = False
-                    self.rectPt1, self.rectPt2 = self.getRectanglePts()
+                    self.gameRectangles[0] = self.getGameRectangle(self.videoManager.frameWidth, self.videoManager.frameHeight, self.minObjectSize)
             elif self.isObjectInPosition:
                 boxColor = (0, 255, 0)
                 self.showResult = True
@@ -296,7 +291,7 @@ class SpotChallenge:
                     self.audioManager.playAudio(self.audioManager.winItemAudioKey)
             
             if not self.roundFreezeTime:
-                self.videoManager.addRectangle(self.rectPt1, self.rectPt2, boxColor, 6)
+                self.videoManager.addRectangle(self.gameRectangles[0].pt1.toTuple(), self.gameRectangles[0].pt2.toTuple(), boxColor, 6)
 
         return isRoundComplete, labelDetections
 
