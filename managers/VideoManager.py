@@ -75,22 +75,13 @@ class VideoManager:
         self.cvNet.setInput(cv.dnn.blobFromImage(self.img, 1.0/127.5, (300, 300), (127.5, 127.5, 127.5), swapRB=True, crop=False))
         self.detections = self.cvNet.forward()
 
-    def labellingFunc(self, isObjectInPosition, className, overrideFunc):
-        if overrideFunc == None:
-            thickness = 6
-            boxColor = (0, 255, 0) if isObjectInPosition else (0, 0, 255)
-            return (self.xLeftPos, self.yTopPos), (self.xRightPos, self.yBottomPos), boxColor, thickness
-        else:
-            return overrideFunc(isObjectInPosition, className, self.xLeftPos, self.yTopPos, self.xRightPos, self.yBottomPos)
-
-    def labelDetections(self, classNames, trackingFunc, labellingFunc=None):
+    def findDetections(self, classNames, objectDetectedHandler):
         self.xLeftPos = None
         self.xRightPos = None
         self.yTopPos = None
         self.yBottomPos = None
         rows = self.img.shape[0]
         cols = self.img.shape[1]
-        isObjectInPosition = False
         for detection in self.detections[0,0,:,:]:
             score = float(detection[2])
             class_id = int(detection[1])
@@ -99,8 +90,4 @@ class VideoManager:
                 self.yTopPos = int(detection[4] * rows) # marginTop
                 self.xRightPos = int(detection[5] * cols)
                 self.yBottomPos = int(detection[6] * rows)
-                isObjectInPosition = trackingFunc(cols, rows, self.xLeftPos, self.yTopPos, self.xRightPos, self.yBottomPos, self.netModel['classNames'][class_id])
-                rectPt1, rectPt2, boxColor, thickness = self.labellingFunc(isObjectInPosition, self.netModel['classNames'][class_id], labellingFunc)
-                if thickness != 0:
-                    self.addRectangle(rectPt1, rectPt2, boxColor, thickness)
-        return isObjectInPosition
+                objectDetectedHandler(cols, rows, self.xLeftPos, self.yTopPos, self.xRightPos, self.yBottomPos, self.netModel['classNames'][class_id])
