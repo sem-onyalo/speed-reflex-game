@@ -19,7 +19,7 @@ class CentreChallenge:
         self.defaultFont = videoManager.getDefaultFont()
         self.videoManager = videoManager
 
-    def isObjectInMiddle(self, cols, rows, xLeft, yTop, xRight, yBottom):
+    def isObjectInMiddle(self, cols, rows, xLeft, yTop, xRight, yBottom, className):
         return abs(xLeft - (cols - xRight)) < self.trackingThreshold and abs(yTop - (rows - yBottom)) < self.trackingThreshold
 
     def addText(self, text, textScale=1, textColor=(238,238,238), textThickness=2, menuColor=(155,109,29), showMenuBack=True, position='centre'):
@@ -73,7 +73,7 @@ class CentreChallenge:
     def runGameStep(self):
         self.videoManager.runDetection()
         gameLabel = self.updateGameParams()
-        trackingFunc = lambda cols, rows, xLeft, yTop, xRight, yBottom : self.isObjectInMiddle(cols, rows, xLeft, yTop, xRight, yBottom)
+        trackingFunc = lambda cols, rows, xLeft, yTop, xRight, yBottom, className : self.isObjectInMiddle(cols, rows, xLeft, yTop, xRight, yBottom, className)
         self.isObjectInPosition = self.videoManager.labelDetections([self.classToDetect], trackingFunc)
 
         if gameLabel != None:

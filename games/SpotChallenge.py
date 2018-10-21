@@ -51,7 +51,7 @@ class SpotChallenge:
         self.audioManager = audioManager
         self.videoManager = videoManager
 
-    def checkOnePlayerObjectInPosition(self, cols, rows, xLeft, yTop, xRight, yBottom):
+    def checkOnePlayerObjectInPosition(self, cols, rows, xLeft, yTop, xRight, yBottom, className):
         xLeftDiff = abs(xLeft - self.gameRectangles[0].pt1.x)
         yTopDiff = abs(yTop - self.gameRectangles[0].pt1.y)
         xRightDiff = abs(xRight - self.gameRectangles[0].pt2.x)
@@ -59,16 +59,24 @@ class SpotChallenge:
         isObjectInPosition = xLeftDiff < self.trackingThreshold and yTopDiff < self.trackingThreshold and xRightDiff < self.trackingThreshold and yBottomDiff < self.trackingThreshold
         return isObjectInPosition
 
-    def getGameRectangle(self, maxWidth, maxHeight, minSize):
-        widthPt = random.randint(0, maxWidth)
-        heightPt = random.randint(0, maxHeight)
-        if widthPt + minSize > maxWidth:
+    def checkTwoPlayerObjectInPosition(self, cols, rows, xLeft, yTop, xRight, yBottom, className):
+        xLeftDiff = abs(xLeft - self.gameRectangles[0].pt1.x)
+        yTopDiff = abs(yTop - self.gameRectangles[0].pt1.y)
+        xRightDiff = abs(xRight - self.gameRectangles[0].pt2.x)
+        yBottomDiff = abs(yBottom - self.gameRectangles[0].pt2.y)
+        isObjectInPosition = xLeftDiff < self.trackingThreshold and yTopDiff < self.trackingThreshold and xRightDiff < self.trackingThreshold and yBottomDiff < self.trackingThreshold
+        return isObjectInPosition
+
+    def getGameRectangle(self, minSize, xRange, yRange):
+        widthPt = random.randint(xRange[0], xRange[1])
+        heightPt = random.randint(yRange[0], yRange[1])
+        if widthPt + minSize > xRange[1]:
             xRight = widthPt
             xLeft = widthPt - minSize
         else:
             xLeft = widthPt
             xRight = widthPt + minSize
-        if heightPt + minSize > maxHeight:
+        if heightPt + minSize > yRange[1]:
             yBottom = heightPt
             yTop = heightPt - minSize
         else:
@@ -192,9 +200,9 @@ class SpotChallenge:
     def showTwoPlayerLabels(self, isObjectInPosition, className, xLeftPos, yTopPos, xRightPos, yBottomPos):
         thickness = 6
         middlePos = int(round(self.videoManager.frameWidth/2))
-        middlePosPad = int(round(self.twoPlayerSplitLineThickness/2))
-        redBallPositionThreshold = middlePos - middlePosPad
-        blueBallPositionThreshold = middlePos + middlePosPad
+        middlePad = int(round(self.twoPlayerSplitLineThickness/2))
+        redBallPositionThreshold = middlePos - middlePad
+        blueBallPositionThreshold = middlePos + middlePad
         boxColor = (255,0,255)
         if isObjectInPosition:
             boxColor = (0, 255, 0) if isObjectInPosition else (0, 0, 255)
@@ -257,7 +265,7 @@ class SpotChallenge:
         if playerMode == 1:
             boxColor = (0, 255, 255)
             if self.gameRectangles[0] == None: # initial state, on first run
-                self.gameRectangles[0] = self.getGameRectangle(self.videoManager.frameWidth, self.videoManager.frameHeight, self.minObjectSize)
+                self.gameRectangles[0] = self.getGameRectangle(self.minObjectSize, (0,self.videoManager.frameWidth), (0,self.videoManager.frameHeight))
             elif self.showResult:
                 boxColor = (0, 255, 0)
                 continueToSleep = True
@@ -275,7 +283,7 @@ class SpotChallenge:
                     labelDetections = False
                 else:
                     self.showResult = False
-                    self.gameRectangles[0] = self.getGameRectangle(self.videoManager.frameWidth, self.videoManager.frameHeight, self.minObjectSize)
+                    self.gameRectangles[0] = self.getGameRectangle(self.minObjectSize, (0,self.videoManager.frameWidth), (0,self.videoManager.frameHeight))
             elif self.isObjectInPosition:
                 boxColor = (0, 255, 0)
                 self.showResult = True
@@ -292,6 +300,21 @@ class SpotChallenge:
             
             if not self.roundFreezeTime:
                 self.videoManager.addRectangle(self.gameRectangles[0].pt1.toTuple(), self.gameRectangles[0].pt2.toTuple(), boxColor, 6)
+
+        elif playerMode == 2:
+            if self.gameRectangles[0] == None or self.gameRectangles[1] == None:
+                middlePad = int(round(self.twoPlayerSplitLineThickness/2))
+                if self.gameRectangles[0] == None:
+                    xRangeMax = int(round(self.videoManager.frameWidth/2)) - middlePad
+                    self.gameRectangles[0] = self.getGameRectangle(self.minObjectSize, (0, xRangeMax), (0,self.videoManager.frameHeight))
+                
+                if self.gameRectangles[1] == None:
+                    xRangeMin = int(round(self.videoManager.frameWidth/2)) + middlePad
+                    self.gameRectangles[1] = self.getGameRectangle(self.minObjectSize, (xRangeMin, self.videoManager.frameWidth), (0,self.videoManager.frameHeight))
+
+            boxColor = (0, 255, 255)
+            self.videoManager.addRectangle(self.gameRectangles[0].pt1.toTuple(), self.gameRectangles[0].pt2.toTuple(), boxColor, 6)
+            self.videoManager.addRectangle(self.gameRectangles[1].pt1.toTuple(), self.gameRectangles[1].pt2.toTuple(), boxColor, 6)
 
         return isRoundComplete, labelDetections
 
@@ -313,14 +336,14 @@ class SpotChallenge:
 
     def runGamePlay(self, playerMode, elapsedTime, labelDetections):
         if self.playerMode == 1:
-            trackingFunc = lambda cols, rows, xLeft, yTop, xRight, yBottom : self.checkOnePlayerObjectInPosition(cols, rows, xLeft, yTop, xRight, yBottom)
+            trackingFunc = lambda cols, rows, xLeft, yTop, xRight, yBottom, className : self.checkOnePlayerObjectInPosition(cols, rows, xLeft, yTop, xRight, yBottom, className)
             if labelDetections:
                 self.isObjectInPosition = self.videoManager.labelDetections(self.classesToDetect[0:1], trackingFunc)
             self.showOnePlayerGameStats(elapsedTime, self.maxRep, self.currentRep)
 
         elif self.playerMode == 2:
             currentReps = [0, 0]
-            trackingFunc = lambda cols, rows, xLeft, yTop, xRight, yBottom : False
+            trackingFunc = lambda cols, rows, xLeft, yTop, xRight, yBottom, className : self.checkTwoPlayerObjectInPosition(cols, rows, xLeft, yTop, xRight, yBottom, className)
             labellingFunc = lambda isInPosition, className, xLeft, yTop, xRight, yBottom : self.showTwoPlayerLabels(isInPosition, className, xLeft, yTop, xRight, yBottom)
             self.showTwoPlayerGameStats(elapsedTime, self.maxRep, currentReps)
             self.videoManager.labelDetections(self.classesToDetect, trackingFunc, labellingFunc)
@@ -342,7 +365,7 @@ class SpotChallenge:
         elif self.gameMode == self.gameModeCalibration:
             self.videoManager.runDetection()
             isCalibrationComplete = self.updateCalibrationParams()
-            trackingFunc = lambda cols, rows, xLeft, yTop, xRight, yBottom : False
+            trackingFunc = lambda cols, rows, xLeft, yTop, xRight, yBottom, className : False
             self.videoManager.labelDetections(self.classesToDetect[0:1], trackingFunc)
             if isCalibrationComplete:
                 self.gameMode = self.gameModeGetPlayers

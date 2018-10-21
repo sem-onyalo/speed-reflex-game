@@ -99,7 +99,7 @@ class VideoManager:
                 self.yTopPos = int(detection[4] * rows) # marginTop
                 self.xRightPos = int(detection[5] * cols)
                 self.yBottomPos = int(detection[6] * rows)
-                isObjectInPosition = trackingFunc(cols, rows, self.xLeftPos, self.yTopPos, self.xRightPos, self.yBottomPos)
+                isObjectInPosition = trackingFunc(cols, rows, self.xLeftPos, self.yTopPos, self.xRightPos, self.yBottomPos, self.netModel['classNames'][class_id])
                 rectPt1, rectPt2, boxColor, thickness = self.labellingFunc(isObjectInPosition, self.netModel['classNames'][class_id], labellingFunc)
                 if thickness != 0:
                     self.addRectangle(rectPt1, rectPt2, boxColor, thickness)
