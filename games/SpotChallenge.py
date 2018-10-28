@@ -241,9 +241,9 @@ class SpotChallenge:
 
     def updateCalibrationParams(self):
         calibrationComplete = False
+        self.addText('Hold object in front of screen')
         if self.calibrationStep == 1: # calibrate for smallest object size
             if self.calibrationSubStep == 1:
-                print('Hold object farthest from screen')
                 self.calibrationStartTime = time.time()
                 self.calibrationSubStep = self.calibrationSubStep + 1
             elif self.calibrationSubStep == 2:
@@ -369,7 +369,7 @@ class SpotChallenge:
         elif self.gameMode == self.gameModeCalibration:
             self.videoManager.runDetection()
             isCalibrationComplete = self.updateCalibrationParams()
-            objectDetectionHandler = lambda cols, rows, xLeft, yTop, xRight, yBottom, className : False
+            objectDetectionHandler = lambda cols, rows, xLeft, yTop, xRight, yBottom, className : self.videoManager.addRectangle((xLeft, yTop), (xRight, yBottom), (0, 255, 255), 3)
             self.videoManager.findDetections(self.classesToDetect[0:1], objectDetectionHandler)
             if isCalibrationComplete:
                 self.gameMode = self.gameModeGetPlayers
