@@ -100,8 +100,8 @@ class SpotChallenge:
 
         return textX, textY, textWidth, textHeight
 
-    def addText(self, text, textScale=1, textColor=(238,238,238), textThickness=2, menuColor=(155,109,29), showBackground=True, position='centre'):
-        textX, textY, textWidth, textHeight = self.getTextPosition(text, self.defaultFont, textScale, textThickness)
+    def addText(self, text, textScale=1, textColor=(238,238,238), textThickness=2, menuColor=(155,109,29), showBackground=True, widthFactor=1, widthPos='centre', heightPos='centre'):
+        textX, textY, textWidth, textHeight = self.getTextPosition(text, self.defaultFont, textScale, textThickness, widthFactor=widthFactor, widthPos=widthPos, heightPos=heightPos)
         menuPadX = 15
         menuPadY = 20
         rectPt1X = textX - menuPadX
@@ -197,6 +197,12 @@ class SpotChallenge:
         self.videoManager.addLine(splitLine1Pt1, splitLine1Pt2, (255, 255, 255), thickness=self.twoPlayerSplitLineThickness)
         self.videoManager.addLine(splitLine2Pt1, splitLine2Pt2, (255, 255, 255), thickness=self.twoPlayerSplitLineThickness)
 
+        winnerText = 'WINNER'
+        if self.player1.freezeRoundResult:
+            self.addText(winnerText, textScale=3, textThickness=6, widthFactor=2)
+        elif self.player2.freezeRoundResult:
+            self.addText(winnerText, textScale=3, textThickness=6, widthFactor=2, widthPos='right')
+
     def showDetectionLabels(self, playerMode, isObjectInPosition, xLeft, yTop, xRight, yBottom, className):
         boxThickness = 6
         boxColor = (0,0,255)
@@ -260,21 +266,16 @@ class SpotChallenge:
 
         return calibrationComplete
 
-    def runGameCountdown(self):
-        countdownComplete = False
-        if self.countdownStartTime == None:
-            self.countdownStartTime = time.time()
-            countdownStr = str(self.countdownMaxTime)
-        else:
-            currentTime = time.time()
-            if currentTime - self.countdownStartTime > self.countdownMaxTime:
-                countdownStr = 'GO'
-                self.countdownStartTime = None
-                countdownComplete = True
+    def updatePlayerParams(self, player, gameRectangle):
+        isRoundComplete = player.runStep()
+        if player.itemWon:
+            if player.roundWon:
+                self.audioManager.playAudio(self.audioManager.winLevelAudioKey)
             else:
-                countdownStr = str(self.countdownMaxTime - int(currentTime - self.countdownStartTime))
-        self.addText(countdownStr, textScale=4, textThickness=8)
-        return countdownComplete
+                self.audioManager.playAudio(self.audioManager.winItemAudioKey)
+        elif player.resetItem:
+            gameRectangle = None
+        return isRoundComplete, gameRectangle
 
     def updateGameParams(self, playerMode, elapsedTime):
         # TODO: break up this function, too many things going on
@@ -287,24 +288,11 @@ class SpotChallenge:
         # ----------------------------------------------------------------------------------------------------
 
         if self.player1.isActive:
-            isRoundComplete = isRoundComplete or self.player1.runStep()
-            if self.player1.itemWon:
-                if self.player1.roundWon:
-                    self.audioManager.playAudio(self.audioManager.winLevelAudioKey)
-                else:
-                    self.audioManager.playAudio(self.audioManager.winItemAudioKey)
-            elif self.player1.resetItem:
-                self.gameRectangles[0] = None
+            isRoundComplete, self.gameRectangles[0] = self.updatePlayerParams(self.player1, self.gameRectangles[0])
 
         if self.player2.isActive:
-            isRoundComplete = isRoundComplete or self.player2.runStep()
-            if self.player2.itemWon:
-                if self.player2.roundWon:
-                    self.audioManager.playAudio(self.audioManager.winLevelAudioKey)
-                else:
-                    self.audioManager.playAudio(self.audioManager.winItemAudioKey)
-            elif self.player2.resetItem:
-                self.gameRectangles[1] = None
+            isP2RoundComplete, self.gameRectangles[1] = self.updatePlayerParams(self.player2, self.gameRectangles[1])
+            isRoundComplete = isRoundComplete or isP2RoundComplete
         
         # ----------------------------------------------------------------------------------------------------
         #   UPDATE GAME RECTANGLES
@@ -328,7 +316,7 @@ class SpotChallenge:
 
         if playerMode == 1 and not self.player1.freezeRoundResult:
             self.videoManager.addRectangle(self.gameRectangles[0].pt1.toTuple(), self.gameRectangles[0].pt2.toTuple(), ((0, 255, 255) if not self.player1.showResult else (0, 255, 0)), 6)
-        elif playerMode == 2:
+        elif playerMode == 2 and not (self.player1.freezeRoundResult or self.player2.freezeRoundResult):
             self.videoManager.addRectangle(self.gameRectangles[0].pt1.toTuple(), self.gameRectangles[0].pt2.toTuple(), ((0, 255, 255) if not self.player1.showResult else (0, 255, 0)), 6)
             self.videoManager.addRectangle(self.gameRectangles[1].pt1.toTuple(), self.gameRectangles[1].pt2.toTuple(), ((0, 255, 255) if not self.player2.showResult else (0, 255, 0)), 6)
 
@@ -347,6 +335,22 @@ class SpotChallenge:
             self.showTwoPlayerGameStats(elapsedTime, [self.player1.maxRep, self.player2.maxRep], [self.player1.currentRep, self.player2.currentRep])
 
         return isRoundComplete
+
+    def runGameCountdown(self):
+        countdownComplete = False
+        if self.countdownStartTime == None:
+            self.countdownStartTime = time.time()
+            countdownStr = str(self.countdownMaxTime)
+        else:
+            currentTime = time.time()
+            if currentTime - self.countdownStartTime > self.countdownMaxTime:
+                countdownStr = 'GO'
+                self.countdownStartTime = None
+                countdownComplete = True
+            else:
+                countdownStr = str(self.countdownMaxTime - int(currentTime - self.countdownStartTime))
+        self.addText(countdownStr, textScale=4, textThickness=8)
+        return countdownComplete
 
     def runGameStep(self):
         continueRun = True
