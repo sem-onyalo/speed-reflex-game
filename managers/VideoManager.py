@@ -1,4 +1,5 @@
 import cv2 as cv
+import time
 
 class VideoManager:
     imgMargin = 60
@@ -12,12 +13,14 @@ class VideoManager:
     xRightPos = None
     yTopPos = None
     yBottomPos = None
+    videoSource = None
 
-    def __init__(self, windowName, frameWidth, frameHeight, netModel, scoreThreshold, trackingThreshold):
+    def __init__(self, videoSource, windowName, frameWidth, frameHeight, netModel, scoreThreshold, trackingThreshold):
         self.netModel = netModel
         self.windowName = windowName
         self.frameWidth = frameWidth
         self.frameHeight = frameHeight
+        self.videoSource = videoSource
         self.scoreThreshold = scoreThreshold
         self.trackingThreshold = trackingThreshold
         cv.namedWindow(self.windowName, cv.WINDOW_NORMAL)
@@ -59,12 +62,15 @@ class VideoManager:
     def shutdown(self):
         cv.destroyAllWindows()
 
-    def create_capture(self, source = 0):
-        self.cap = cv.VideoCapture(source)
+    def create_capture(self):
+        self.cap = cv.VideoCapture(cv.CAP_DSHOW + self.videoSource)
         if self.cap is None or not self.cap.isOpened():
-            raise RuntimeError('Warning: unable to open video source: ', source)
+            raise RuntimeError('Warning: unable to open video source: ', self.videoSource)
         self.cap.set(cv.CAP_PROP_FRAME_WIDTH, self.frameWidth) # default: 640
         self.cap.set(cv.CAP_PROP_FRAME_HEIGHT, self.frameHeight) # default: 480
+        ret, _ = self.cap.read()
+        if not ret:
+            raise RuntimeError('Error: could not read video frame. Try changing resolution.')
 
     def readNewFrame(self):
         _, img = self.cap.read()

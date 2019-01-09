@@ -19,6 +19,9 @@ class Player:
     winItemFreezeMaxTime = 0.5
     winRoundFreezeMaxTime = 7
 
+    def __init__(self, reps):
+        self.maxRep = reps
+
     def runStep(self):
         self.itemWon = False
         self.roundWon = False

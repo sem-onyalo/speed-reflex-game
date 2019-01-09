@@ -40,15 +40,15 @@ class SpotChallenge:
     videoManager = None
     classesToDetect = ["red ball", "blue ball"]
 
-    def __init__(self, videoManager, audioManager):
+    def __init__(self, videoManager, audioManager, playerReps):
         self.gameMode = self.gameModeAwaitingCalibrationConfirm
         self.defaultFont = videoManager.getDefaultFont()
         self.audioManager = audioManager
         self.videoManager = videoManager
-        self.player1 = Player.Player()
-        self.player2 = Player.Player()
+        self.player1 = Player.Player(playerReps)
+        self.player2 = Player.Player(playerReps)
 
-    def getGameRectangle(self, minSize, xRange, yRange):
+    def createGameRectangle(self, minSize, xRange, yRange):
         widthPt = random.randint(xRange[0], xRange[1])
         heightPt = random.randint(yRange[0], yRange[1])
         if widthPt + minSize > xRange[1]:
@@ -287,28 +287,34 @@ class SpotChallenge:
         #   UPDATE PLAYER PARAMS
         # ----------------------------------------------------------------------------------------------------
 
-        if self.player1.isActive:
+        if playerMode == 1:
             isRoundComplete, self.gameRectangles[0] = self.updatePlayerParams(self.player1, self.gameRectangles[0])
-
-        if self.player2.isActive:
-            isP2RoundComplete, self.gameRectangles[1] = self.updatePlayerParams(self.player2, self.gameRectangles[1])
-            isRoundComplete = isRoundComplete or isP2RoundComplete
+        elif playerMode == 2:
+            if self.player1.freezeRoundResult and not self.player2.freezeRoundResult:
+                isRoundComplete, self.gameRectangles[0] = self.updatePlayerParams(self.player1, self.gameRectangles[0])
+            elif not self.player1.freezeRoundResult and self.player2.freezeRoundResult:
+                isP2RoundComplete, self.gameRectangles[1] = self.updatePlayerParams(self.player2, self.gameRectangles[1])
+                isRoundComplete = isRoundComplete or isP2RoundComplete
+            else:
+                isRoundComplete, self.gameRectangles[0] = self.updatePlayerParams(self.player1, self.gameRectangles[0])
+                isP2RoundComplete, self.gameRectangles[1] = self.updatePlayerParams(self.player2, self.gameRectangles[1])
+                isRoundComplete = isRoundComplete or isP2RoundComplete
         
         # ----------------------------------------------------------------------------------------------------
         #   UPDATE GAME RECTANGLES
         # ----------------------------------------------------------------------------------------------------
 
         if playerMode == 1 and self.gameRectangles[0] == None:
-            self.gameRectangles[0] = self.getGameRectangle(self.minObjectSize, (0,self.videoManager.frameWidth), (0,self.videoManager.frameHeight))
+            self.gameRectangles[0] = self.createGameRectangle(self.minObjectSize, (0,self.videoManager.frameWidth), (0,self.videoManager.frameHeight))
         elif playerMode == 2 and (self.gameRectangles[0] == None or self.gameRectangles[1] == None):
             middlePad = int(round(self.twoPlayerSplitLineThickness/2))
             if self.gameRectangles[0] == None:
                 xRangeMax = int(round(self.videoManager.frameWidth/2)) - middlePad
-                self.gameRectangles[0] = self.getGameRectangle(self.minObjectSize, (0, xRangeMax), (0,self.videoManager.frameHeight))
+                self.gameRectangles[0] = self.createGameRectangle(self.minObjectSize, (0, xRangeMax), (0,self.videoManager.frameHeight))
             
             if self.gameRectangles[1] == None:
                 xRangeMin = int(round(self.videoManager.frameWidth/2)) + middlePad
-                self.gameRectangles[1] = self.getGameRectangle(self.minObjectSize, (xRangeMin, self.videoManager.frameWidth), (0,self.videoManager.frameHeight))
+                self.gameRectangles[1] = self.createGameRectangle(self.minObjectSize, (xRangeMin, self.videoManager.frameWidth), (0,self.videoManager.frameHeight))
         
         # ----------------------------------------------------------------------------------------------------
         #   ADD GAME RECTANGLES TO FRAME
@@ -321,17 +327,22 @@ class SpotChallenge:
             self.videoManager.addRectangle(self.gameRectangles[1].pt1.toTuple(), self.gameRectangles[1].pt2.toTuple(), ((0, 255, 255) if not self.player2.showResult else (0, 255, 0)), 6)
 
         # ----------------------------------------------------------------------------------------------------
-        #   FIND AND LABEL OBJECT DETECTIONS
+        #   LABEL OBJECT DETECTIONS
         # ----------------------------------------------------------------------------------------------------
 
         objectDetectionHandler = lambda cols, rows, xLeft, yTop, xRight, yBottom, className : self.handleObjectDetected(cols, rows, xLeft, yTop, xRight, yBottom, className)
+        detectionClasses = self.classesToDetect
+        if playerMode == 1:
+            detectionClasses = detectionClasses[0:1]
+        self.videoManager.findDetections(detectionClasses, objectDetectionHandler)
+
+        # ----------------------------------------------------------------------------------------------------
+        #   SHOW GAME STATS
+        # ----------------------------------------------------------------------------------------------------
 
         if playerMode == 1:
-            self.videoManager.findDetections(self.classesToDetect[0:1], objectDetectionHandler)
             self.showOnePlayerGameStats(elapsedTime, self.player1.maxRep, self.player1.currentRep)
-
         elif playerMode == 2:
-            self.videoManager.findDetections(self.classesToDetect, objectDetectionHandler)
             self.showTwoPlayerGameStats(elapsedTime, [self.player1.maxRep, self.player2.maxRep], [self.player1.currentRep, self.player2.currentRep])
 
         return isRoundComplete
