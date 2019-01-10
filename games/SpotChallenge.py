@@ -23,6 +23,8 @@ class SpotChallenge:
     roundElapsedTime = 0
     winItemSleepMaxTime = 0.5
     winRoundSleepMaxTime = 7
+    runDetectionTime = None
+    runDetectionMaxTime = 1
 
     # Game mode constants
     gameModeAwaitingCalibrationConfirm = 'AWCL'
@@ -40,13 +42,18 @@ class SpotChallenge:
     videoManager = None
     classesToDetect = ["red ball", "blue ball"]
 
-    def __init__(self, videoManager, audioManager, playerReps):
+    def __init__(self, videoManager, audioManager, playerReps, detectionFrequency):
+        # TODO: create a timer class that handles all the different timers (removes the 'currentTime' duplicate code everywhere)
         self.gameMode = self.gameModeAwaitingCalibrationConfirm
         self.defaultFont = videoManager.getDefaultFont()
         self.audioManager = audioManager
         self.videoManager = videoManager
         self.player1 = Player.Player(playerReps)
         self.player2 = Player.Player(playerReps)
+        self.runDetectionMaxTime = detectionFrequency
+
+        self.videoManager.initVideo()
+        self.videoManager.initDetections()
 
     def createGameRectangle(self, minSize, xRange, yRange):
         widthPt = random.randint(xRange[0], xRange[1])
@@ -371,14 +378,14 @@ class SpotChallenge:
             continueRun = False
 
         elif self.gameMode == self.gameModeAwaitingCalibrationConfirm:
-            self.videoManager.readNewFrame()
+            objectDetectionHandler = lambda cols, rows, xLeft, yTop, xRight, yBottom, className : self.videoManager.addRectangle((xLeft, yTop), (xRight, yBottom), (0, 255, 255), 3)
+            self.videoManager.findDetections(self.classesToDetect[0:1], objectDetectionHandler)
             self.showCalibrateMenu()
             if cmd == 67 or cmd == 99: # C or c
                 self.gameMode = self.gameModeCalibration
                 print('Switching game mode:', self.gameMode)
         
         elif self.gameMode == self.gameModeCalibration:
-            self.videoManager.runDetection()
             isCalibrationComplete = self.updateCalibrationParams()
             objectDetectionHandler = lambda cols, rows, xLeft, yTop, xRight, yBottom, className : self.videoManager.addRectangle((xLeft, yTop), (xRight, yBottom), (0, 255, 255), 3)
             self.videoManager.findDetections(self.classesToDetect[0:1], objectDetectionHandler)
@@ -387,7 +394,6 @@ class SpotChallenge:
                 print('Switching game mode:', self.gameMode)
         
         elif self.gameMode == self.gameModeGetPlayers:
-            self.videoManager.readNewFrame()
             self.showPlayerModeMenu()
             if cmd == 49 or cmd == 50: # 1 or 2
                 if cmd == 49: # 1
@@ -402,7 +408,6 @@ class SpotChallenge:
                 print('Switching game mode:', self.gameMode)
         
         elif self.gameMode == self.gameModeCountdown:
-            self.videoManager.readNewFrame()
             isCountdownComplete = self.runGameCountdown()
             if isCountdownComplete:
                 self.roundElapsedTime = 0
@@ -412,14 +417,12 @@ class SpotChallenge:
 
         elif self.gameMode == self.gameModePlay:
             elapsedTime = int(time.time() - self.roundStartTime)
-            self.videoManager.runDetection()
             isRoundComplete = self.updateGameParams(self.playerMode, elapsedTime)
             if isRoundComplete:
                 self.gameMode = self.gameModeAwaitingPlayConfirm
                 print('Switching game mode:', self.gameMode)
 
         elif self.gameMode == self.gameModeAwaitingPlayConfirm:
-            self.videoManager.readNewFrame()
             self.showPlayOrExitMenu()
             if cmd == 78 or cmd == 110: # N or n
                 continueRun = False

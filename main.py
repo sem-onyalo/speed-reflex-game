@@ -27,6 +27,7 @@ if __name__ == '__main__':
     parser.add_argument("--res", type=str, default="640,480", help="The resolution of the video. Default is \"640,480\"")
     parser.add_argument("--vidsrc", type=int, default=0, help="The index of the video source. Default is 0.")
     parser.add_argument("--reps", type=int, default=5, help="The number of player reps per spot challenge game. Default is 5.")
+    parser.add_argument("--detectfreq", type=float, default=1, help="The frequency with which to run object detections in seconds. Default is 1.")
     args = parser.parse_args()
     
     res = list(map(int, args.res.split(',')))
@@ -36,7 +37,7 @@ if __name__ == '__main__':
         game = CentreChallenge.CentreChallenge(videoManager)
     elif args.gameId == 2:
         audioManager = AudioManager.AudioManager()
-        game = SpotChallenge.SpotChallenge(videoManager, audioManager, args.reps)
+        game = SpotChallenge.SpotChallenge(videoManager, audioManager, args.reps, args.detectfreq)
     else:
         raise RuntimeError('Invalid game choice:', args.gameId)
     

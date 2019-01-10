@@ -1,4 +1,5 @@
 import cv2 as cv
+import threading
 import time
 
 class VideoManager:
@@ -15,6 +16,16 @@ class VideoManager:
     yBottomPos = None
     videoSource = None
 
+    isImgInit = False
+    isDetectionsInit = False
+
+    isRunVideo = False
+    runVideoFreqSec = 0
+    runVideoThread = None
+    isRunDetections = False
+    runDetectionsFreqSec = 0
+    runDetectionsThread = None
+
     def __init__(self, videoSource, windowName, frameWidth, frameHeight, netModel, scoreThreshold, trackingThreshold):
         self.netModel = netModel
         self.windowName = windowName
@@ -29,6 +40,9 @@ class VideoManager:
 
     def getImage(self):
         return self.img
+
+    def getCvLib(self):
+        return cv
 
     def getXCoordDetectionDiff(self):
         return self.xRightPos - self.xLeftPos if self.xRightPos != None and self.xLeftPos != None else None
@@ -46,7 +60,8 @@ class VideoManager:
         return cv.getTextSize(text, font, scale, thickness)[0]
 
     def showImage(self):
-        cv.imshow(self.windowName, self.img)
+        if self.isImgInit:
+            cv.imshow(self.windowName, self.img)
 
     def addText(self, text, pt, font, scale, color, thickness):
         cv.putText(self.img, text, pt, font, scale, color, thickness, cv.LINE_AA)
@@ -60,6 +75,8 @@ class VideoManager:
         cv.line(self.img, pt1, pt2, color, thickness)
 
     def shutdown(self):
+        self.isRunVideo = False
+        self.isRunDetections = False
         cv.destroyAllWindows()
 
     def create_capture(self):
@@ -75,25 +92,48 @@ class VideoManager:
     def readNewFrame(self):
         _, img = self.cap.read()
         self.img = cv.flip(img, 1)
+        if not self.isImgInit:
+            self.isImgInit = True
 
-    def runDetection(self):
-        self.readNewFrame()
-        self.cvNet.setInput(cv.dnn.blobFromImage(self.img, 1.0/127.5, (300, 300), (127.5, 127.5, 127.5), swapRB=True, crop=False))
-        self.detections = self.cvNet.forward()
+    def runVideo(self):
+        while self.isRunVideo:
+            self.readNewFrame()
+            # self.showImage()
+            time.sleep(self.runVideoFreqSec)
+
+    def initVideo(self):
+        self.isRunVideo = True
+        self.runVideoThread = threading.Thread(target=self.runVideo)
+        self.runVideoThread.start()
+
+    def runDetections(self):
+        while self.isRunDetections:
+            if self.isImgInit:
+                self.cvNet.setInput(cv.dnn.blobFromImage(self.img, 1.0/127.5, (300, 300), (127.5, 127.5, 127.5), swapRB=True, crop=False))
+                self.detections = self.cvNet.forward()
+                if not self.isDetectionsInit:
+                    self.isDetectionsInit = True
+            time.sleep(self.runDetectionsFreqSec)
+
+    def initDetections(self):
+        self.isRunDetections = True
+        self.runDetectionsThread = threading.Thread(target=self.runDetections)
+        self.runDetectionsThread.start()
 
     def findDetections(self, classNames, objectDetectedHandler):
-        self.xLeftPos = None
-        self.xRightPos = None
-        self.yTopPos = None
-        self.yBottomPos = None
-        rows = self.img.shape[0]
-        cols = self.img.shape[1]
-        for detection in self.detections[0,0,:,:]:
-            score = float(detection[2])
-            class_id = int(detection[1])
-            if score > self.scoreThreshold and self.netModel['classNames'][class_id] in classNames:
-                self.xLeftPos = int(detection[3] * cols) # marginLeft
-                self.yTopPos = int(detection[4] * rows) # marginTop
-                self.xRightPos = int(detection[5] * cols)
-                self.yBottomPos = int(detection[6] * rows)
-                objectDetectedHandler(cols, rows, self.xLeftPos, self.yTopPos, self.xRightPos, self.yBottomPos, self.netModel['classNames'][class_id])
+        if self.isDetectionsInit:
+            self.xLeftPos = None
+            self.xRightPos = None
+            self.yTopPos = None
+            self.yBottomPos = None
+            rows = self.img.shape[0]
+            cols = self.img.shape[1]
+            for detection in self.detections[0,0,:,:]:
+                score = float(detection[2])
+                class_id = int(detection[1])
+                if score > self.scoreThreshold and self.netModel['classNames'][class_id] in classNames:
+                    self.xLeftPos = int(detection[3] * cols) # marginLeft
+                    self.yTopPos = int(detection[4] * rows) # marginTop
+                    self.xRightPos = int(detection[5] * cols)
+                    self.yBottomPos = int(detection[6] * rows)
+                    objectDetectedHandler(cols, rows, self.xLeftPos, self.yTopPos, self.xRightPos, self.yBottomPos, self.netModel['classNames'][class_id])
