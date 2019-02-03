@@ -104,3 +104,6 @@ ENV/
 .vs
 .vscode
 .idea
+
+# model training dir
+training/

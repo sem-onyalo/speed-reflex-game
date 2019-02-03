@@ -18,6 +18,7 @@ positional arguments:
   gameId: The game to play: 
   1 - Centre Challenge
   2 - Spot Challenge
+  3 - Boxing Challenge
 
 optional arguments:
   -h, --help  show this help message and exit
@@ -27,7 +28,7 @@ optional arguments:
 
 ```
 activate speed-reflex
-python main.py 1 --res "1280,800"
+python main.py 1 --res 1280,720
 ```
 
 ## Credits
