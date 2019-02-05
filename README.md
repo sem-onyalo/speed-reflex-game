@@ -29,6 +29,7 @@ optional arguments:
 ```
 activate speed-reflex
 python main.py 1 --res 1280,720
+python main.py 3 --res 1280,720 --model_index 1
 ```
 
 ## Credits
