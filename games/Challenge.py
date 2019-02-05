@@ -3,7 +3,7 @@ from core import Player, Point, Rectangle
 class Challenge:
     # Game mode constants
     gameModeAwaitingCalibration = 'AWCL'
-    gameModeAwaitingPlayConfirm = 'AWPL'
+    gameModeAwaitingPlay = 'AWPL'
     gameModeCalibration = 'CLBT'
     gameModePlay = 'PLAY'
 
@@ -14,12 +14,20 @@ class Challenge:
     audioManager = None
     videoManager = None
 
+    # ##################################################
+    #                    CONSTRUCTORS                   
+    # ##################################################
+
     def __init__(self, videoManager, audioManager, playerReps):
         self.videoManager = videoManager
         self.audioManager = audioManager
         self.player1 = Player.Player(playerReps)
         self.gameMode = self.gameModeAwaitingCalibration
         self.defaultFont = self.videoManager.getDefaultFont()
+
+    # ##################################################
+    #                      METHODS                     
+    # ##################################################
 
     def shutdownGame(self):
         self.videoManager.shutdown()

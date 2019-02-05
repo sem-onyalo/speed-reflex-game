@@ -97,3 +97,26 @@ class VideoManager:
                 self.xRightPos = int(detection[5] * cols)
                 self.yBottomPos = int(detection[6] * rows)
                 objectDetectedHandler(cols, rows, self.xLeftPos, self.yTopPos, self.xRightPos, self.yBottomPos, self.netModel['classNames'][class_id])
+
+    def findBestDetection(self, className, objectDetectionHandler):
+        currentScore = 0
+        currentPos = (0, 0, 0, 0)
+        self.xLeftPos = None
+        self.xRightPos = None
+        self.yTopPos = None
+        self.yBottomPos = None
+        rows = self.img.shape[0]
+        cols = self.img.shape[1]
+        for detection in self.detections[0,0,:,:]:
+            score = float(detection[2])
+            class_id = int(detection[1])
+            if score > self.scoreThreshold and score > currentScore and self.netModel['classNames'][class_id] == className:
+                currentScore = score
+                currentPos = (int(detection[3] * cols), int(detection[4] * rows), int(detection[5] * cols), int(detection[6] * rows))
+
+        if currentScore > 0:
+            self.xLeftPos = currentPos[0]
+            self.yTopPos = currentPos[1]
+            self.xRightPos = currentPos[2]
+            self.yBottomPos = currentPos[3]
+            objectDetectionHandler(cols, rows, self.xLeftPos, self.yTopPos, self.xRightPos, self.yBottomPos, className)
