@@ -6,6 +6,8 @@ class Challenge:
     gameModeAwaitingPlay = 'AWPL'
     gameModeCalibration = 'CLBT'
     gameModePlay = 'PLAY'
+    gameModeStop = 'STOP'
+    gameModeWin = 'GWIN'
 
     # Init variables
     player1 = None

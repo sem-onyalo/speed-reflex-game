@@ -1,5 +1,6 @@
 import cv2 as cv
 import time
+from core import Point, Rectangle
 
 class VideoManager:
     imgMargin = 60
@@ -98,7 +99,7 @@ class VideoManager:
                 self.yBottomPos = int(detection[6] * rows)
                 objectDetectedHandler(cols, rows, self.xLeftPos, self.yTopPos, self.xRightPos, self.yBottomPos, self.netModel['classNames'][class_id])
 
-    def findBestDetection(self, className, objectDetectionHandler):
+    def findBestDetection(self, className, objectDetectedHandler=None):
         currentScore = 0
         currentPos = (0, 0, 0, 0)
         self.xLeftPos = None
@@ -119,4 +120,6 @@ class VideoManager:
             self.yTopPos = currentPos[1]
             self.xRightPos = currentPos[2]
             self.yBottomPos = currentPos[3]
-            objectDetectionHandler(cols, rows, self.xLeftPos, self.yTopPos, self.xRightPos, self.yBottomPos, className)
+            if objectDetectedHandler != None:
+                objectDetectedHandler(cols, rows, self.xLeftPos, self.yTopPos, self.xRightPos, self.yBottomPos, className)
+            return Rectangle.Rectangle(Point.Point(self.xLeftPos, self.yTopPos), Point.Point(self.xRightPos, self.yBottomPos))

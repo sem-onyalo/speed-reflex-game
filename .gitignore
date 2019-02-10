@@ -107,3 +107,6 @@ ENV/
 
 # model training dir
 training/
+
+# game settings file
+*.settings.json
