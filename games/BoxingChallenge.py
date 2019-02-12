@@ -34,6 +34,8 @@ class BoxingChallenge(Challenge.Challenge):
     calibrationMaxTime = 0
     hitTargetTimer = None
     hitTargetMaxTime = 0
+    gameModeAwaitingPlayTimer = None
+    gameModeAwaitingPlayMaxTime = 0
 
     currentComboIndex = 0
     currentPunchIndex = 0
@@ -51,9 +53,10 @@ class BoxingChallenge(Challenge.Challenge):
         super().__init__(videoManager, audioManager, playerReps)
         self.loadPunchCoords()
         self.loadCombinations()
+        self.hitTargetThreshold = 40
         self.calibrationMaxTime = 7
         self.hitTargetMaxTime = 0.5
-        self.hitTargetThreshold = 40
+        self.gameModeAwaitingPlayMaxTime = 10
 
     # ##################################################
     #                   HELPER METHODS                  
@@ -194,7 +197,7 @@ class BoxingChallenge(Challenge.Challenge):
         self.addText(text)
 
     def showAwaitingCalibrationOrPlayMenu(self):
-        text = "Press 'C' to calibrate, 'P' to play"
+        text = "Press 'P' to play, 'C' to calibrate"
         self.addText(text)
 
     def showAwaitingPlayMenu(self):
@@ -307,10 +310,15 @@ class BoxingChallenge(Challenge.Challenge):
     def win(self, cmd):
         self.videoManager.readNewFrame()
         self.showPlayAgainMenu()
-        if cmd == 78 or cmd == 110: # N or n
+        
+        if self.gameModeAwaitingPlayTimer == None:
+            self.gameModeAwaitingPlayTimer = Timer.Timer(self.gameModeAwaitingPlayMaxTime)
+
+        if self.gameModeAwaitingPlayTimer.isElapsed() or cmd == 89 or cmd == 121: # Y or y
+            self.gameModeAwaitingPlayTimer = None
+            return self.gameModePlay
+        elif cmd == 78 or cmd == 110: # N or n
             return self.gameModeStop
-        elif cmd == 89 or cmd == 121: # Y or y
-            return self.gameModeAwaitingPlay
         else:
             return self.gameMode
 
