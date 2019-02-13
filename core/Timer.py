@@ -11,3 +11,7 @@ class Timer:
     def isElapsed(self):
         currentTime = time.time()
         return currentTime - self.startTime > self.maxTime
+
+    def getElapsed(self):
+        currentTime = time.time()
+        return self.maxTime - int(currentTime - self.startTime)

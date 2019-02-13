@@ -36,6 +36,8 @@ class BoxingChallenge(Challenge.Challenge):
     hitTargetMaxTime = 0
     gameModeAwaitingPlayTimer = None
     gameModeAwaitingPlayMaxTime = 0
+    awaitCalibrationTimer = None
+    awaitCalibrationMaxTime = 0
 
     currentComboIndex = 0
     currentPunchIndex = 0
@@ -56,6 +58,7 @@ class BoxingChallenge(Challenge.Challenge):
         self.hitTargetThreshold = 40
         self.calibrationMaxTime = 7
         self.hitTargetMaxTime = 0.5
+        self.awaitCalibrationMaxTime = 3
         self.gameModeAwaitingPlayMaxTime = 10
 
     # ##################################################
@@ -215,21 +218,25 @@ class BoxingChallenge(Challenge.Challenge):
     def awaitCalibration(self, cmd):
         self.videoManager.readNewFrame()
 
-        if not self.isPunchCoordsSet():
+        if self.awaitCalibrationTimer != None:
+            if self.awaitCalibrationTimer.isElapsed():
+                self.awaitCalibrationTimer = None
+                return self.gameModeCalibration
+            else:
+                self.addText(str(self.awaitCalibrationTimer.getElapsed()))
+        elif not self.isPunchCoordsSet():
             self.showAwaitingCalibrationMenu()
             if cmd == 67 or cmd == 99: # C or c
-                return self.gameModeCalibration
-            else:
-                return self.gameMode
+                self.awaitCalibrationTimer = Timer.Timer(self.awaitCalibrationMaxTime)
         else:
             self.showAwaitingCalibrationOrPlayMenu()
-            if cmd == 67 or cmd == 99: # C or c
-                self.resetPunchCoords()
-                return self.gameModeCalibration
-            elif cmd == 80 or cmd == 112: # P or p
+            if cmd == 80 or cmd == 112: # P or p
                 return self.gameModePlay
-            else:
-                return self.gameMode
+            elif cmd == 67 or cmd == 99: # C or c
+                self.resetPunchCoords()
+                self.awaitCalibrationTimer = Timer.Timer(self.awaitCalibrationMaxTime)
+        
+        return self.gameMode
 
     def calibrate(self):
         self.videoManager.runDetection()
