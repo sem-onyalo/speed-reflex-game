@@ -283,34 +283,33 @@ class BoxingChallenge(Challenge.Challenge):
 
     def play(self):
         self.videoManager.runDetection()
-        # TODO: change to "find best and closest detection"
-        currentDetection = self.videoManager.findBestDetection(self._classesToDetect[0])
 
         if self.currentTarget == None:
             self.currentComboIndex = 0
             self.currentPunchIndex = 0
             self.currentTarget = self.punchCoords[self.combinations[self.currentComboIndex][self.currentPunchIndex]]
+            
+        currentDetections = self.videoManager.findDetections(self._classesToDetect)
 
-        if self.changeTarget(self.currentTarget, currentDetection):
-            self.hitTargetTimer = None
-            self.isCurrentTargetHit = False
+        for currentDetection in currentDetections:
+            if self.changeTarget(self.currentTarget, currentDetection):
+                self.hitTargetTimer = None
+                self.isCurrentTargetHit = False
 
-            self.currentPunchIndex = self.currentPunchIndex + 1
-            if self.currentPunchIndex >= len(self.combinations[self.currentComboIndex]):
-                self.currentTarget = None
-                return self.gameModeWin
-                # self.currentComboIndex = self.currentComboIndex + 1
-                # if self.currentComboIndex >= len(self.combinations):
-                #     return self.gameModeWin
+                self.currentPunchIndex = self.currentPunchIndex + 1
+                if self.currentPunchIndex >= len(self.combinations[self.currentComboIndex]):
+                    self.currentTarget = None
+                    return self.gameModeWin
+                    # self.currentComboIndex = self.currentComboIndex + 1
+                    # if self.currentComboIndex >= len(self.combinations):
+                    #     return self.gameModeWin
 
-            self.currentTarget = self.punchCoords[self.combinations[self.currentComboIndex][self.currentPunchIndex]]
+                self.currentTarget = self.punchCoords[self.combinations[self.currentComboIndex][self.currentPunchIndex]]
 
         if self.isCurrentTargetHit:
             self.videoManager.addRectangle(self.currentTarget.pt1.toTuple(), self.currentTarget.pt2.toTuple(), (0, 255, 0), 3)
         else:
             self.videoManager.addRectangle(self.currentTarget.pt1.toTuple(), self.currentTarget.pt2.toTuple(), (0, 255, 255), 3)
-            if currentDetection != None:
-                self.videoManager.addRectangle(currentDetection.pt1.toTuple(), currentDetection.pt2.toTuple(), (0, 0, 255), 3)
             
         return self.gameMode
 

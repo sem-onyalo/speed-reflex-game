@@ -82,7 +82,8 @@ class VideoManager:
         self.cvNet.setInput(cv.dnn.blobFromImage(self.img, 1.0/127.5, (300, 300), (127.5, 127.5, 127.5), swapRB=True, crop=False))
         self.detections = self.cvNet.forward()
 
-    def findDetections(self, classNames, objectDetectedHandler):
+    def findDetections(self, classNames, objectDetectedHandler=None):
+        rectangles = []
         self.xLeftPos = None
         self.xRightPos = None
         self.yTopPos = None
@@ -97,7 +98,10 @@ class VideoManager:
                 self.yTopPos = int(detection[4] * rows) # marginTop
                 self.xRightPos = int(detection[5] * cols)
                 self.yBottomPos = int(detection[6] * rows)
-                objectDetectedHandler(cols, rows, self.xLeftPos, self.yTopPos, self.xRightPos, self.yBottomPos, self.netModel['classNames'][class_id])
+                if objectDetectedHandler != None:
+                    objectDetectedHandler(cols, rows, self.xLeftPos, self.yTopPos, self.xRightPos, self.yBottomPos, self.netModel['classNames'][class_id])
+                rectangles.append(Rectangle.Rectangle(Point.Point(self.xLeftPos, self.yTopPos), Point.Point(self.xRightPos, self.yBottomPos)))
+        return rectangles
 
     def findBestDetection(self, className, objectDetectedHandler=None):
         currentScore = 0
