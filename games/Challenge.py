@@ -5,9 +5,16 @@ class Challenge:
     gameModeAwaitingCalibration = 'AWCL'
     gameModeAwaitingPlay = 'AWPL'
     gameModeCalibration = 'CLBT'
+    gameModeDebug = 'DBUG'
     gameModePlay = 'PLAY'
     gameModeStop = 'STOP'
     gameModeWin = 'GWIN'
+
+    # Colours
+    red = (0, 0, 255)
+    green = (0, 255, 0)
+    blue = (255, 0, 0)
+    yellow = (0, 255, 255)
 
     # Init variables
     player1 = None

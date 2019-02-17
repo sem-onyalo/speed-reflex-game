@@ -47,6 +47,8 @@ class BoxingChallenge(Challenge.Challenge):
     hitTargetThreshold = 0
     punchBeingCalibrated = None
 
+    debugSetting = 0
+
     # ##################################################
     #                    CONSTRUCTORS                   
     # ##################################################
@@ -168,10 +170,6 @@ class BoxingChallenge(Challenge.Challenge):
     def resetPunchCoords(self):
         self.punchCoords = {}.fromkeys(self._punches)
 
-    def getDefaultObjectDetectionHandler(self, color, thickness=3):
-        objectDetectionHandler = lambda cols, rows, xLeft, yTop, xRight, yBottom, className : self.videoManager.addRectangle((xLeft, yTop), (xRight, yBottom), color, thickness)
-        return objectDetectionHandler
-
     def changeTarget(self, currentTarget, currentAttempt):
         if currentTarget == None or currentAttempt == None:
             return False
@@ -190,6 +188,30 @@ class BoxingChallenge(Challenge.Challenge):
             self.hitTargetTimer = Timer.Timer(self.hitTargetMaxTime)
 
         return False
+
+    # ##################################################
+    #              OBJECT DETECTED HANDLERS             
+    # ##################################################
+
+    def getDefaultObjectDetectedHandler(self, color, thickness=3):
+        objectDetectedHandler = lambda cols, rows, xLeft, yTop, xRight, yBottom, className : self.videoManager.addRectangle((xLeft, yTop), (xRight, yBottom), color, thickness)
+        return objectDetectedHandler
+
+    def getLabelledObjectDetectedHandler(self):
+        objectDetectedHandler = lambda cols, rows, xLeft, yTop, xRight, yBottom, className, score : self.labelAndBoundDetectedObjects(cols, rows, xLeft, yTop, xRight, yBottom, className, score)
+        return objectDetectedHandler
+
+    def getBestObjectDetectedHandler(self):
+        objectDetectedHandler = lambda cols, rows, xLeft, yTop, xRight, yBottom, className, score : self.labelBestDetectedObject(cols, rows, xLeft, yTop, xRight, yBottom, className, score)
+        return objectDetectedHandler
+
+    def labelAndBoundDetectedObjects(self, cols, rows, xLeft, yTop, xRight, yBottom, className, score):
+        label = className + ": " + str(int(round(score * 100))) + '%'
+        self.videoManager.addRectangle((xLeft, yTop), (xRight, yBottom), self.yellow, 3)
+        self.videoManager.addLabel(label, xLeft, yTop)
+
+    def labelBestDetectedObject(self, cols, rows, xLeft, yTop, xRight, yBottom, className, scoreIsIgnoredForNow):
+        self.videoManager.addRectangle((xLeft, yTop), (xRight, yBottom), self.yellow, 3)
 
     # ##################################################
     #                    MENU METHODS                   
@@ -264,8 +286,7 @@ class BoxingChallenge(Challenge.Challenge):
             if self.calibrationTimer == None:
                 self.calibrationTimer = Timer.Timer(self.calibrationMaxTime)
 
-            # TODO: change to "find best and closest detection"
-            bestDetection = self.videoManager.findBestDetection(self._classesToDetect[0], self.getDefaultObjectDetectionHandler((0, 0, 255)))
+            bestDetection = self.videoManager.findBestAndClosestDetection(self._classesToDetect[0], self.getBestObjectDetectedHandler())
 
             # TODO: add algorithm to choose best detection out of all attempts, not just last best detection
             if bestDetection != None:
@@ -307,9 +328,9 @@ class BoxingChallenge(Challenge.Challenge):
                 self.currentTarget = self.punchCoords[self.combinations[self.currentComboIndex][self.currentPunchIndex]]
 
         if self.isCurrentTargetHit:
-            self.videoManager.addRectangle(self.currentTarget.pt1.toTuple(), self.currentTarget.pt2.toTuple(), (0, 255, 0), 3)
+            self.videoManager.addRectangle(self.currentTarget.pt1.toTuple(), self.currentTarget.pt2.toTuple(), self.green, 3)
         else:
-            self.videoManager.addRectangle(self.currentTarget.pt1.toTuple(), self.currentTarget.pt2.toTuple(), (0, 255, 255), 3)
+            self.videoManager.addRectangle(self.currentTarget.pt1.toTuple(), self.currentTarget.pt2.toTuple(), self.yellow, 3)
             
         return self.gameMode
 
@@ -328,6 +349,26 @@ class BoxingChallenge(Challenge.Challenge):
         else:
             return self.gameMode
 
+    def debug(self, cmd):
+        if cmd == 120: # x
+            self.debugSetting = 0
+            return self.gameModeAwaitingCalibration
+        else:
+            if self.debugSetting == 0 or cmd == 49: # 1
+                self.debugSetting = 1
+            elif cmd == 50: # 2
+                self.debugSetting = 2
+
+            self.videoManager.runDetection()
+            if self.debugSetting == 1:
+                self.addText('findDetections')
+                self.videoManager.findDetections(self._classesToDetect, self.getDefaultObjectDetectedHandler(self.red))
+            elif self.debugSetting == 2:
+                self.addText('findBestAndClosestDetection')
+                self.videoManager.findBestAndClosestDetection(self._classesToDetect[0], self.getLabelledObjectDetectedHandler())
+
+            return self.gameModeDebug
+
     # ##################################################
     #                 GAME PLAY METHODS                 
     # ##################################################
@@ -339,6 +380,9 @@ class BoxingChallenge(Challenge.Challenge):
 
         if cmd == 27: # ESC
             continueRun = False
+
+        elif cmd == 48 or self.gameMode == self.gameModeDebug:
+            newGameMode = self.debug(cmd)
 
         elif self.gameMode == self.gameModeAwaitingCalibration:
             newGameMode = self.awaitCalibration(cmd)
