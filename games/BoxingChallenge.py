@@ -338,11 +338,11 @@ class BoxingChallenge(Challenge.Challenge):
 
                 self.currentPunchIndex = self.currentPunchIndex + 1
                 if self.currentPunchIndex >= len(self.combinations[self.currentComboIndex]):
-                    self.currentTarget = None
-                    return self.gameModeWin
-                    # self.currentComboIndex = self.currentComboIndex + 1
-                    # if self.currentComboIndex >= len(self.combinations):
-                    #     return self.gameModeWin
+                    self.currentPunchIndex = 0
+                    self.currentComboIndex = self.currentComboIndex + 1
+                    if self.currentComboIndex >= len(self.combinations):
+                        self.currentTarget = None
+                        return self.gameModeWin
 
                 self.currentTarget = self.punchCoords[self.combinations[self.currentComboIndex][self.currentPunchIndex]]
 
