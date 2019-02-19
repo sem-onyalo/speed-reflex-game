@@ -36,6 +36,8 @@ class BoxingChallenge(Challenge.Challenge):
     punchCoords = {}
     combinations = []
 
+    awaitPlayTimer = None
+    awaitPlayMaxTime = 0
     calibrationTimer = None
     calibrationMaxTime = 0
     hitTargetTimer = None
@@ -63,9 +65,10 @@ class BoxingChallenge(Challenge.Challenge):
         super().__init__(videoManager, audioManager, playerReps)
         self.loadGameSettings()
         self.hitTargetThreshold = 40
-        self.calibrationMaxTime = 7
+        self.awaitPlayMaxTime = 5
         self.hitTargetMaxTime = 0.5
-        self.awaitCalibrationMaxTime = 3
+        self.calibrationMaxTime = 7
+        self.awaitCalibrationMaxTime = 5
         self.gameModeAwaitingPlayMaxTime = 10
 
     # ##################################################
@@ -208,6 +211,11 @@ class BoxingChallenge(Challenge.Challenge):
 
         return False
 
+    def startCountdown_AwaitingPlay(self):
+        # TODO: make method generic, not specific to 'gameModeAwaitingPlay'
+        self.awaitPlayTimer = Timer.Timer(self.awaitPlayMaxTime)
+        self.gameMode = self.gameModeAwaitingPlay
+
     # ##################################################
     #              OBJECT DETECTED HANDLERS             
     # ##################################################
@@ -272,7 +280,7 @@ class BoxingChallenge(Challenge.Challenge):
         else:
             self.showAwaitingCalibrationOrPlayMenu()
             if cmd == 80 or cmd == 112: # P or p
-                return self.gameModePlay
+                self.startCountdown_AwaitingPlay()
             elif cmd == 67 or cmd == 99: # C or c
                 self.resetPunchCoords()
                 self.awaitCalibrationTimer = Timer.Timer(self.awaitCalibrationMaxTime)
@@ -315,11 +323,18 @@ class BoxingChallenge(Challenge.Challenge):
 
     def awaitPlay(self, cmd):
         self.videoManager.readNewFrame()
-        self.showAwaitingPlayMenu()
-        if cmd == 80 or cmd == 112: # P or p
-            return self.gameModePlay
+        if self.awaitPlayTimer != None:
+            if self.awaitPlayTimer.isElapsed():
+                self.awaitPlayTimer = None
+                return self.gameModePlay
+            else:
+                self.addText(str(self.awaitPlayTimer.getElapsed()))
         else:
-            return self.gameMode
+            self.showAwaitingPlayMenu()
+            if cmd == 80 or cmd == 112: # P or p
+                self.startCountdown_AwaitingPlay()
+
+        return self.gameMode
 
     def play(self):
         self.videoManager.runDetection()
