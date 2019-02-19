@@ -1,6 +1,9 @@
+import json
 from core import Player, Point, Rectangle
 
 class Challenge:
+    _gameSettingsFileName = "game.settings.json"
+
     # Game mode constants
     gameModeAwaitingCalibration = 'AWCL'
     gameModeAwaitingPlay = 'AWPL'
@@ -40,6 +43,40 @@ class Challenge:
 
     def shutdownGame(self):
         self.videoManager.shutdown()
+
+    # --------------------------------------------------
+    #               GAME SETTINGS METHODS               
+    # --------------------------------------------------
+
+    def getGameSettings(self, gameName, defaultValue=None):
+        try:
+            with open(self._gameSettingsFileName, "r") as file:
+                gameSettings = json.loads(file.read())
+                if gameName in gameSettings:
+                    return gameSettings[gameName]
+                else:
+                    return defaultValue
+        except:
+            errorMsg = 'Error: could not retrieve game settings for ' + gameName
+            print(errorMsg)
+            raise RuntimeError(errorMsg)
+
+    def setGameSettings(self, gameName, value):
+        try:
+            with open(self._gameSettingsFileName, "r+") as file:
+                gameSettings = json.loads(file.read())
+                gameSettings[gameName] = value
+                file.seek(0)
+                file.write(json.dumps(gameSettings))
+                file.truncate()
+        except:
+            errorMsg = 'Error: could not save game settings for ' + gameName
+            print(errorMsg)
+            raise RuntimeError(errorMsg)
+
+    # --------------------------------------------------
+    #                 ADD OBJECT METHODS                
+    # --------------------------------------------------
 
     def getTextPosition(self, text, textFont, textScale, textThickness, widthFactor=1, widthPos='centre', heightPos='centre'):
         topPad = 30 #self.videoManager.imgMargin

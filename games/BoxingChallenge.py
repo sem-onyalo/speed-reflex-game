@@ -12,16 +12,22 @@ class BoxingChallenge(Challenge.Challenge):
     #                     CONSTANTS                    
     # ##################################################
 
+    _gameName = "boxingChallenge"
+
     _jab = "jab"
     _cross = "cross"
     _leftHook = "left hook"
     _rightHook = "right hook"
     _leftUppercut = "left uppercut"
     _rightUppercut = "right uppercut"
-    _gameSettingsFileName = "game.settings.json"
     _classesToDetect = ['boxing gloves']
 
     _punches = [_jab, _cross, _leftHook, _rightHook, _leftUppercut, _rightUppercut]
+
+    _defaultGameSettings = {
+        "punchCoords": {},
+        "combinations": []
+    }
 
     # ##################################################
     #                    PROPERTIES                    
@@ -55,8 +61,7 @@ class BoxingChallenge(Challenge.Challenge):
 
     def __init__(self, videoManager, audioManager, playerReps):
         super().__init__(videoManager, audioManager, playerReps)
-        self.loadPunchCoords()
-        self.loadCombinations()
+        self.loadGameSettings()
         self.hitTargetThreshold = 40
         self.calibrationMaxTime = 7
         self.hitTargetMaxTime = 0.5
@@ -64,14 +69,21 @@ class BoxingChallenge(Challenge.Challenge):
         self.gameModeAwaitingPlayMaxTime = 10
 
     # ##################################################
+    #                GAME SETTINGS METHODS              
+    # ##################################################
+
+    def loadGameSettings(self):
+        gameSettings = self.getGameSettings(self._gameName, self._defaultGameSettings)
+        self.punchCoords = self.loadPunchCoords(gameSettings["punchCoords"])
+        self.combinations = self.loadCombinations(gameSettings["combinations"])
+
+    # ##################################################
     #                   HELPER METHODS                  
     # ##################################################
 
-    def loadPunchCoords(self):
+    def loadPunchCoords(self, gameSettings):
+        punchCoords = {}
         try:
-            with open(self._gameSettingsFileName, "r") as file:
-                gameSettings = json.loads(file.read())
-
             print(self._jab, 'coords: ((' + str(gameSettings[self._jab]['pt1']['x']) + ',', str(gameSettings[self._jab]['pt1']['y']) + '),', '(' + str(gameSettings[self._jab]['pt2']['x']) + ',', str(gameSettings[self._jab]['pt2']['y']) + '))')
             print(self._cross, 'coords: ((' + str(gameSettings[self._cross]['pt1']['x']) + ',', str(gameSettings[self._cross]['pt1']['y']) + '),', '(' + str(gameSettings[self._cross]['pt2']['x']) + ',', str(gameSettings[self._cross]['pt2']['y']) + '))')
             print(self._leftHook, 'coords: ((' + str(gameSettings[self._leftHook]['pt1']['x']) + ',', str(gameSettings[self._leftHook]['pt1']['y']) + '),', '(' + str(gameSettings[self._leftHook]['pt2']['x']) + ',', str(gameSettings[self._leftHook]['pt2']['y']) + '))')
@@ -79,23 +91,31 @@ class BoxingChallenge(Challenge.Challenge):
             print(self._leftUppercut, 'coords: ((' + str(gameSettings[self._leftUppercut]['pt1']['x']) + ',', str(gameSettings[self._leftUppercut]['pt1']['y']) + '),', '(' + str(gameSettings[self._leftUppercut]['pt2']['x']) + ',', str(gameSettings[self._leftUppercut]['pt2']['y']) + '))')
             print(self._rightUppercut, 'coords: ((' + str(gameSettings[self._rightUppercut]['pt1']['x']) + ',', str(gameSettings[self._rightUppercut]['pt1']['y']) + '),', '(' + str(gameSettings[self._rightUppercut]['pt2']['x']) + ',', str(gameSettings[self._rightUppercut]['pt2']['y']) + '))')
             
-            self.punchCoords[self._jab] = Rectangle.Rectangle(Point.Point(gameSettings[self._jab]['pt1']['x'], gameSettings[self._jab]['pt1']['y']), Point.Point(gameSettings[self._jab]['pt2']['x'], gameSettings[self._jab]['pt2']['y']))
-            self.punchCoords[self._cross] = Rectangle.Rectangle(Point.Point(gameSettings[self._cross]['pt1']['x'], gameSettings[self._cross]['pt1']['y']), Point.Point(gameSettings[self._cross]['pt2']['x'], gameSettings[self._cross]['pt2']['y']))
-            self.punchCoords[self._leftHook] = Rectangle.Rectangle(Point.Point(gameSettings[self._leftHook]['pt1']['x'], gameSettings[self._leftHook]['pt1']['y']), Point.Point(gameSettings[self._leftHook]['pt2']['x'], gameSettings[self._leftHook]['pt2']['y']))
-            self.punchCoords[self._rightHook] = Rectangle.Rectangle(Point.Point(gameSettings[self._rightHook]['pt1']['x'], gameSettings[self._rightHook]['pt1']['y']), Point.Point(gameSettings[self._rightHook]['pt2']['x'], gameSettings[self._rightHook]['pt2']['y']))
-            self.punchCoords[self._leftUppercut] = Rectangle.Rectangle(Point.Point(gameSettings[self._leftUppercut]['pt1']['x'], gameSettings[self._leftUppercut]['pt1']['y']), Point.Point(gameSettings[self._leftUppercut]['pt2']['x'], gameSettings[self._leftUppercut]['pt2']['y']))
-            self.punchCoords[self._rightUppercut] = Rectangle.Rectangle(Point.Point(gameSettings[self._rightUppercut]['pt1']['x'], gameSettings[self._rightUppercut]['pt1']['y']), Point.Point(gameSettings[self._rightUppercut]['pt2']['x'], gameSettings[self._rightUppercut]['pt2']['y']))
+            punchCoords[self._jab] = Rectangle.Rectangle(Point.Point(gameSettings[self._jab]['pt1']['x'], gameSettings[self._jab]['pt1']['y']), Point.Point(gameSettings[self._jab]['pt2']['x'], gameSettings[self._jab]['pt2']['y']))
+            punchCoords[self._cross] = Rectangle.Rectangle(Point.Point(gameSettings[self._cross]['pt1']['x'], gameSettings[self._cross]['pt1']['y']), Point.Point(gameSettings[self._cross]['pt2']['x'], gameSettings[self._cross]['pt2']['y']))
+            punchCoords[self._leftHook] = Rectangle.Rectangle(Point.Point(gameSettings[self._leftHook]['pt1']['x'], gameSettings[self._leftHook]['pt1']['y']), Point.Point(gameSettings[self._leftHook]['pt2']['x'], gameSettings[self._leftHook]['pt2']['y']))
+            punchCoords[self._rightHook] = Rectangle.Rectangle(Point.Point(gameSettings[self._rightHook]['pt1']['x'], gameSettings[self._rightHook]['pt1']['y']), Point.Point(gameSettings[self._rightHook]['pt2']['x'], gameSettings[self._rightHook]['pt2']['y']))
+            punchCoords[self._leftUppercut] = Rectangle.Rectangle(Point.Point(gameSettings[self._leftUppercut]['pt1']['x'], gameSettings[self._leftUppercut]['pt1']['y']), Point.Point(gameSettings[self._leftUppercut]['pt2']['x'], gameSettings[self._leftUppercut]['pt2']['y']))
+            punchCoords[self._rightUppercut] = Rectangle.Rectangle(Point.Point(gameSettings[self._rightUppercut]['pt1']['x'], gameSettings[self._rightUppercut]['pt1']['y']), Point.Point(gameSettings[self._rightUppercut]['pt2']['x'], gameSettings[self._rightUppercut]['pt2']['y']))
         except:
             print('Error: could not retrieve punch coords from game settings')
-            self.punchCoords = {}.fromkeys(self._punches)
+            punchCoords = {}.fromkeys(self._punches)
 
-    def loadCombinations(self):
-        self.combinations.append([
-            self._punches[0], self._punches[1], self._punches[0], self._punches[1] # self._jab, self._cross, self._jab, self._cross
-        ])
+        return punchCoords
+
+    def loadCombinations(self, gameSettings):
+        combinations = []
+        if isinstance(gameSettings, list) and len(gameSettings) > 0:
+            combinations = gameSettings
+        else:
+            combinations.append([self._jab, self._cross, self._jab, self._cross])
+
+        return combinations
 
     def savePunchCoords(self, punchCoords):
-        gameSettings = {
+        gameSettings = self.getGameSettings(self._gameName, self._defaultGameSettings)
+
+        gameSettings["punchCoords"] = {
             self._jab: {
                 "pt1": {
                     "x": punchCoords[self._jab].pt1.x,
@@ -158,8 +178,7 @@ class BoxingChallenge(Challenge.Challenge):
             }
         }
 
-        with open(self._gameSettingsFileName, "w") as file:
-            file.write(json.dumps(gameSettings))
+        self.setGameSettings(self._gameName, gameSettings)
 
     def isPunchCoordsSet(self):
         for punch in self._punches:
