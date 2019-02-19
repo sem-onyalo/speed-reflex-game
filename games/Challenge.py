@@ -107,3 +107,16 @@ class Challenge:
         if showBackground:
             self.videoManager.addRectangle((rectPt1X, rectPt1Y), (rectPt2X, rectPt2Y), menuColor, -1)
         self.videoManager.addText(text, (textX, textY), self.defaultFont, textScale, textColor, textThickness)
+
+    def addTextToRectangle(self, text, rectangle, textScale=1, textColor=(238,238,238), textThickness=2):
+        rectWidth = int(rectangle.pt2.x - rectangle.pt1.x)
+        rectHeight = int(rectangle.pt2.y - rectangle.pt1.y)
+        textSize = self.videoManager.getTextSize(text, self.defaultFont, textScale, textThickness)
+        textWidth = textSize[0]
+        textHeight = textSize[1]
+
+        textX = int(round((rectWidth - textWidth) / 2)) + rectangle.pt1.x
+        textY = int(round((rectHeight - textHeight) / 2)) + rectangle.pt1.y + textHeight
+
+        self.videoManager.addText(text, (textX, textY), self.defaultFont, textScale, textColor, textThickness)
+        
