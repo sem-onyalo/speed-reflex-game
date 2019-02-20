@@ -25,6 +25,10 @@ class BoxingChallenge(Challenge.Challenge):
     _punches = [_jab, _cross, _leftHook, _rightHook, _leftUppercut, _rightUppercut]
 
     _defaultGameSettings = {
+        "preferences": {
+            "detectionScoreThreshold": 0,
+            "hitTargetThreshold": 0
+        },
         "timerVars": {
             "awaitPlayMaxTime": 5,
             "hitTargetMaxTime": 0.5,
@@ -72,7 +76,6 @@ class BoxingChallenge(Challenge.Challenge):
     def __init__(self, videoManager, audioManager, playerReps):
         super().__init__(videoManager, audioManager, playerReps)
         self.loadGameSettings()
-        self.hitTargetThreshold = videoManager.trackingThreshold
 
     # ##################################################
     #                GAME SETTINGS METHODS              
@@ -83,6 +86,18 @@ class BoxingChallenge(Challenge.Challenge):
         self.punchCoords = self.loadPunchCoords(gameSettings["punchCoords"])
         self.combinations = self.loadCombinations(gameSettings["combinations"])
         self.loadTimerVars(gameSettings["timerVars"])
+        self.loadThresholdSettings(gameSettings["preferences"])
+
+    def loadThresholdSettings(self, gameSettings):
+        if "hitTargetThreshold" in gameSettings and gameSettings["hitTargetThreshold"] > 0:
+            self.hitTargetThreshold = int(gameSettings["hitTargetThreshold"])
+        else:
+            self.hitTargetThreshold = self.videoManager.trackingThreshold
+
+        if "detectionScoreThreshold" in gameSettings and gameSettings["detectionScoreThreshold"] > 0:
+            self.videoManager.scoreThreshold = float(gameSettings["detectionScoreThreshold"])
+
+        print('scoreThreshold:', self.videoManager.scoreThreshold, 'hitTargetThreshold:', self.hitTargetThreshold)
 
     def loadTimerVars(self, gameSettings):
         self.awaitPlayMaxTime = gameSettings["awaitPlayMaxTime"]
