@@ -25,6 +25,13 @@ class BoxingChallenge(Challenge.Challenge):
     _punches = [_jab, _cross, _leftHook, _rightHook, _leftUppercut, _rightUppercut]
 
     _defaultGameSettings = {
+        "timerVars": {
+            "awaitPlayMaxTime": 5,
+            "hitTargetMaxTime": 0.5,
+            "calibrationMaxTime": 7,
+            "awaitCalibrationMaxTime": 5,
+            "gameModeAwaitingPlayMaxTime": 10
+        },
         "punchCoords": {},
         "combinations": []
     }
@@ -36,17 +43,18 @@ class BoxingChallenge(Challenge.Challenge):
     punchCoords = {}
     combinations = []
 
-    awaitPlayTimer = None
     awaitPlayMaxTime = 0
-    calibrationTimer = None
-    calibrationMaxTime = 0
-    hitTargetTimer = None
     hitTargetMaxTime = 0
-    gameModeAwaitingPlayTimer = None
-    gameModeAwaitingPlayMaxTime = 0
-    awaitCalibrationTimer = None
+    calibrationMaxTime = 0
     awaitCalibrationMaxTime = 0
+    gameModeAwaitingPlayMaxTime = 0
 
+    awaitPlayTimer = None
+    hitTargetTimer = None
+    calibrationTimer = None
+    awaitCalibrationTimer = None
+    gameModeAwaitingPlayTimer = None
+    
     currentComboIndex = 0
     currentPunchIndex = 0
 
@@ -65,11 +73,6 @@ class BoxingChallenge(Challenge.Challenge):
         super().__init__(videoManager, audioManager, playerReps)
         self.loadGameSettings()
         self.hitTargetThreshold = videoManager.trackingThreshold
-        self.awaitPlayMaxTime = 5
-        self.hitTargetMaxTime = 0.5
-        self.calibrationMaxTime = 7
-        self.awaitCalibrationMaxTime = 5
-        self.gameModeAwaitingPlayMaxTime = 10
 
     # ##################################################
     #                GAME SETTINGS METHODS              
@@ -79,10 +82,15 @@ class BoxingChallenge(Challenge.Challenge):
         gameSettings = self.getGameSettings(self._gameName, self._defaultGameSettings)
         self.punchCoords = self.loadPunchCoords(gameSettings["punchCoords"])
         self.combinations = self.loadCombinations(gameSettings["combinations"])
+        self.loadTimerVars(gameSettings["timerVars"])
 
-    # ##################################################
-    #                   HELPER METHODS                  
-    # ##################################################
+    def loadTimerVars(self, gameSettings):
+        self.awaitPlayMaxTime = gameSettings["awaitPlayMaxTime"]
+        self.hitTargetMaxTime = gameSettings["hitTargetMaxTime"]
+        self.calibrationMaxTime = gameSettings["calibrationMaxTime"]
+        self.awaitCalibrationMaxTime = gameSettings["awaitCalibrationMaxTime"]
+        self.gameModeAwaitingPlayMaxTime = gameSettings["gameModeAwaitingPlayMaxTime"]
+        print('awaitPlayMaxTime:', self.awaitPlayMaxTime, 'hitTargetMaxTime:', self.hitTargetMaxTime, 'calibrationMaxTime:', self.calibrationMaxTime, 'awaitCalibrationMaxTime:', self.awaitCalibrationMaxTime, 'gameModeAwaitingPlayMaxTime:', self.gameModeAwaitingPlayMaxTime)
 
     def loadPunchCoords(self, gameSettings):
         punchCoords = {}
@@ -182,6 +190,10 @@ class BoxingChallenge(Challenge.Challenge):
         }
 
         self.setGameSettings(self._gameName, gameSettings)
+
+    # ##################################################
+    #                   HELPER METHODS                  
+    # ##################################################
 
     def isPunchCoordsSet(self):
         for punch in self._punches:
