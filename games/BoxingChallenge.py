@@ -192,24 +192,17 @@ class BoxingChallenge(Challenge.Challenge):
     def resetPunchCoords(self):
         self.punchCoords = {}.fromkeys(self._punches)
 
-    def changeTarget(self, currentTarget, currentAttempt):
+    def isTargetHit(self, currentTarget, currentAttempt):
         if currentTarget == None or currentAttempt == None:
             return False
-
-        if self.hitTargetTimer != None:
-            return self.hitTargetTimer.isElapsed()
-
-        if not self.isCurrentTargetHit:
+        elif self.isCurrentTargetHit:
+            return True
+        else:
             xLeftDiff = abs(currentAttempt.pt1.x - currentTarget.pt1.x)
             yTopDiff = abs(currentAttempt.pt1.y - currentTarget.pt1.y)
             xRightDiff = abs(currentAttempt.pt2.x - currentTarget.pt2.x)
             yBottomDiff = abs(currentAttempt.pt2.y - currentTarget.pt2.y)
-            self.isCurrentTargetHit = xLeftDiff < self.hitTargetThreshold and yTopDiff < self.hitTargetThreshold and xRightDiff < self.hitTargetThreshold and yBottomDiff < self.hitTargetThreshold
-
-        if self.isCurrentTargetHit:
-            self.hitTargetTimer = Timer.Timer(self.hitTargetMaxTime)
-
-        return False
+            return xLeftDiff < self.hitTargetThreshold and yTopDiff < self.hitTargetThreshold and xRightDiff < self.hitTargetThreshold and yBottomDiff < self.hitTargetThreshold
 
     def startCountdown_AwaitingPlay(self):
         # TODO: make method generic, not specific to 'gameModeAwaitingPlay'
@@ -337,33 +330,36 @@ class BoxingChallenge(Challenge.Challenge):
         return self.gameMode
 
     def play(self):
-        self.videoManager.runDetection()
-
         if self.currentTarget == None:
             self.currentComboIndex = 0
             self.currentPunchIndex = 0
             self.currentTarget = self.punchCoords[self.combinations[self.currentComboIndex][self.currentPunchIndex]]
-            
-        currentDetections = self.videoManager.findDetections(self._classesToDetect)
+        
+        elif self.hitTargetTimer != None and self.hitTargetTimer.isElapsed():
+            self.hitTargetTimer = None
+            self.isCurrentTargetHit = False
 
-        for currentDetection in currentDetections:
-            if self.changeTarget(self.currentTarget, currentDetection):
-                self.hitTargetTimer = None
-                self.isCurrentTargetHit = False
+            self.currentPunchIndex = self.currentPunchIndex + 1
+            if self.currentPunchIndex >= len(self.combinations[self.currentComboIndex]):
+                self.currentPunchIndex = 0
+                self.currentComboIndex = self.currentComboIndex + 1
+                if self.currentComboIndex >= len(self.combinations):
+                    self.currentTarget = None
+                    return self.gameModeWin
 
-                self.currentPunchIndex = self.currentPunchIndex + 1
-                if self.currentPunchIndex >= len(self.combinations[self.currentComboIndex]):
-                    self.currentPunchIndex = 0
-                    self.currentComboIndex = self.currentComboIndex + 1
-                    if self.currentComboIndex >= len(self.combinations):
-                        self.currentTarget = None
-                        return self.gameModeWin
+            self.currentTarget = self.punchCoords[self.combinations[self.currentComboIndex][self.currentPunchIndex]]
 
-                self.currentTarget = self.punchCoords[self.combinations[self.currentComboIndex][self.currentPunchIndex]]
-
+        self.videoManager.runDetection()
         if self.isCurrentTargetHit:
             self.videoManager.addRectangle(self.currentTarget.pt1.toTuple(), self.currentTarget.pt2.toTuple(), self.green, 3)
         else:
+            currentDetections = self.videoManager.findDetections(self._classesToDetect)
+            for currentDetection in currentDetections:
+                self.isCurrentTargetHit = self.isTargetHit(self.currentTarget, currentDetection)
+                if self.isCurrentTargetHit:
+                    self.hitTargetTimer = Timer.Timer(self.hitTargetMaxTime)
+                    break
+
             self.videoManager.addRectangle(self.currentTarget.pt1.toTuple(), self.currentTarget.pt2.toTuple(), self.yellow, 3)
             self.addTextToRectangle(self.combinations[self.currentComboIndex][self.currentPunchIndex], self.currentTarget)
             
