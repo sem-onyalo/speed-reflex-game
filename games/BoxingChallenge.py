@@ -291,7 +291,7 @@ class BoxingChallenge(Challenge.Challenge):
 
         if self.punchBeingCalibrated == None:
             self.savePunchCoords(self.punchCoords)
-            return self.gameModeAwaitingPlay
+            return self.gameModeAwaitingCalibration
         else:
             self.addText(self.punchBeingCalibrated)
 
@@ -329,8 +329,16 @@ class BoxingChallenge(Challenge.Challenge):
 
         return self.gameMode
 
-    def play(self):
-        if self.currentTarget == None:
+    def play(self, cmd):
+        if cmd == 120: # x
+            self.isCurrentTargetHit = False
+            self.currentComboIndex = 0
+            self.currentPunchIndex = 0
+            self.hitTargetTimer = None
+            self.currentTarget = None
+            return self.gameModeAwaitingCalibration
+
+        elif self.currentTarget == None:
             self.currentComboIndex = 0
             self.currentPunchIndex = 0
             self.currentTarget = self.punchCoords[self.combinations[self.currentComboIndex][self.currentPunchIndex]]
@@ -425,7 +433,7 @@ class BoxingChallenge(Challenge.Challenge):
             newGameMode = self.awaitPlay(cmd)
 
         elif self.gameMode == self.gameModePlay:
-            newGameMode = self.play()
+            newGameMode = self.play(cmd)
 
         elif self.gameMode == self.gameModeWin:
             newGameMode = self.win(cmd)
