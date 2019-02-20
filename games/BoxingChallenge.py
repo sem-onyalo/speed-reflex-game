@@ -64,7 +64,7 @@ class BoxingChallenge(Challenge.Challenge):
     def __init__(self, videoManager, audioManager, playerReps):
         super().__init__(videoManager, audioManager, playerReps)
         self.loadGameSettings()
-        self.hitTargetThreshold = 40
+        self.hitTargetThreshold = videoManager.trackingThreshold
         self.awaitPlayMaxTime = 5
         self.hitTargetMaxTime = 0.5
         self.calibrationMaxTime = 7
