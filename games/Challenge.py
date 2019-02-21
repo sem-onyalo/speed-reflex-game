@@ -18,6 +18,7 @@ class Challenge:
     green = (0, 255, 0)
     blue = (255, 0, 0)
     yellow = (0, 255, 255)
+    purple = (255, 0, 255)
 
     # Init variables
     player1 = None

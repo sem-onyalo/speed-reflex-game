@@ -238,6 +238,14 @@ class BoxingChallenge(Challenge.Challenge):
         self.awaitPlayTimer = Timer.Timer(self.awaitPlayMaxTime)
         self.gameMode = self.gameModeAwaitingPlay
 
+    def showTargetThresholdBoundingBoxes(self, currentTarget, hitTargetThreshold):
+        outerThreshPt1 = Point.Point(currentTarget.pt1.x - hitTargetThreshold, currentTarget.pt1.y - hitTargetThreshold)
+        outerThreshPt2 = Point.Point(currentTarget.pt2.x + hitTargetThreshold, currentTarget.pt2.y + hitTargetThreshold)
+        innerThreshPt1 = Point.Point(currentTarget.pt1.x + hitTargetThreshold, currentTarget.pt1.y + hitTargetThreshold)
+        innerThreshPt2 = Point.Point(currentTarget.pt2.x - hitTargetThreshold, currentTarget.pt2.y - hitTargetThreshold)
+        self.videoManager.addRectangle(outerThreshPt1.toTuple(), outerThreshPt2.toTuple(), self.purple, 3)
+        self.videoManager.addRectangle(innerThreshPt1.toTuple(), innerThreshPt2.toTuple(), self.purple, 3)
+
     # ##################################################
     #              OBJECT DETECTED HANDLERS             
     # ##################################################
@@ -394,9 +402,7 @@ class BoxingChallenge(Challenge.Challenge):
             if self.gameSettings["preferences"]["freezeBoundingBoxesAndWaitForUserInputWhenTargetHit"]:
                 self.videoManager.addRectangle(self.successfulAttempt.pt1.toTuple(), self.successfulAttempt.pt2.toTuple(), self.red, 3)
                 if self.gameSettings["preferences"]["showTargetThresholdBoundingBox"]:
-                    threshPt1 = Point.Point(self.currentTarget.pt1.x - self.hitTargetThreshold, self.currentTarget.pt1.y - self.hitTargetThreshold)
-                    threshPt2 = Point.Point(self.currentTarget.pt2.x + self.hitTargetThreshold, self.currentTarget.pt2.y + self.hitTargetThreshold)
-                    self.videoManager.addRectangle(threshPt1.toTuple(), threshPt2.toTuple(), self.green, 3)
+                    self.showTargetThresholdBoundingBoxes(self.currentTarget, self.hitTargetThreshold)
                 if cmd == 110: # n
                     self.hitTargetTimer = Timer.Timer(self.hitTargetMaxTime)
         else:
@@ -413,9 +419,7 @@ class BoxingChallenge(Challenge.Challenge):
                     self.videoManager.addRectangle(currentDetection.pt1.toTuple(), currentDetection.pt2.toTuple(), self.red, 3)
 
             if self.gameSettings["preferences"]["showTargetThresholdBoundingBox"]:
-                threshPt1 = Point.Point(self.currentTarget.pt1.x - self.hitTargetThreshold, self.currentTarget.pt1.y - self.hitTargetThreshold)
-                threshPt2 = Point.Point(self.currentTarget.pt2.x + self.hitTargetThreshold, self.currentTarget.pt2.y + self.hitTargetThreshold)
-                self.videoManager.addRectangle(threshPt1.toTuple(), threshPt2.toTuple(), self.green, 3)
+                self.showTargetThresholdBoundingBoxes(self.currentTarget, self.hitTargetThreshold)
 
             self.videoManager.addRectangle(self.currentTarget.pt1.toTuple(), self.currentTarget.pt2.toTuple(), self.yellow, 3)
             self.addTextToRectangle(self.combinations[self.currentComboIndex][self.currentPunchIndex], self.currentTarget)
