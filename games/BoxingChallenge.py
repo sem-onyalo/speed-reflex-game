@@ -27,7 +27,9 @@ class BoxingChallenge(Challenge.Challenge):
     _defaultGameSettings = {
         "preferences": {
             "detectionScoreThreshold": 0,
-            "hitTargetThreshold": 0
+            "hitTargetThreshold": 0,
+            "showTargetThresholdBoundingBox": False,
+            "showClassDetectionBoundingBoxesDuringGamePlay": False
         },
         "timerVars": {
             "awaitPlayMaxTime": 5,
@@ -44,6 +46,7 @@ class BoxingChallenge(Challenge.Challenge):
     #                    PROPERTIES                    
     # ##################################################
 
+    gameSettings = {}
     punchCoords = {}
     combinations = []
 
@@ -82,11 +85,11 @@ class BoxingChallenge(Challenge.Challenge):
     # ##################################################
 
     def loadGameSettings(self):
-        gameSettings = self.getGameSettings(self._gameName, self._defaultGameSettings)
-        self.punchCoords = self.loadPunchCoords(gameSettings["punchCoords"])
-        self.combinations = self.loadCombinations(gameSettings["combinations"])
-        self.loadTimerVars(gameSettings["timerVars"])
-        self.loadThresholdSettings(gameSettings["preferences"])
+        self.gameSettings = self.getGameSettings(self._gameName, self._defaultGameSettings)
+        self.loadPunchCoords(self.gameSettings["punchCoords"])
+        self.loadCombinations(self.gameSettings["combinations"])
+        self.loadTimerVars(self.gameSettings["timerVars"])
+        self.loadThresholdSettings(self.gameSettings["preferences"])
 
     def loadThresholdSettings(self, gameSettings):
         if "hitTargetThreshold" in gameSettings and gameSettings["hitTargetThreshold"] > 0:
@@ -108,7 +111,6 @@ class BoxingChallenge(Challenge.Challenge):
         print('awaitPlayMaxTime:', self.awaitPlayMaxTime, 'hitTargetMaxTime:', self.hitTargetMaxTime, 'calibrationMaxTime:', self.calibrationMaxTime, 'awaitCalibrationMaxTime:', self.awaitCalibrationMaxTime, 'gameModeAwaitingPlayMaxTime:', self.gameModeAwaitingPlayMaxTime)
 
     def loadPunchCoords(self, gameSettings):
-        punchCoords = {}
         try:
             print(self._jab, 'coords: ((' + str(gameSettings[self._jab]['pt1']['x']) + ',', str(gameSettings[self._jab]['pt1']['y']) + '),', '(' + str(gameSettings[self._jab]['pt2']['x']) + ',', str(gameSettings[self._jab]['pt2']['y']) + '))')
             print(self._cross, 'coords: ((' + str(gameSettings[self._cross]['pt1']['x']) + ',', str(gameSettings[self._cross]['pt1']['y']) + '),', '(' + str(gameSettings[self._cross]['pt2']['x']) + ',', str(gameSettings[self._cross]['pt2']['y']) + '))')
@@ -117,26 +119,21 @@ class BoxingChallenge(Challenge.Challenge):
             print(self._leftUppercut, 'coords: ((' + str(gameSettings[self._leftUppercut]['pt1']['x']) + ',', str(gameSettings[self._leftUppercut]['pt1']['y']) + '),', '(' + str(gameSettings[self._leftUppercut]['pt2']['x']) + ',', str(gameSettings[self._leftUppercut]['pt2']['y']) + '))')
             print(self._rightUppercut, 'coords: ((' + str(gameSettings[self._rightUppercut]['pt1']['x']) + ',', str(gameSettings[self._rightUppercut]['pt1']['y']) + '),', '(' + str(gameSettings[self._rightUppercut]['pt2']['x']) + ',', str(gameSettings[self._rightUppercut]['pt2']['y']) + '))')
             
-            punchCoords[self._jab] = Rectangle.Rectangle(Point.Point(gameSettings[self._jab]['pt1']['x'], gameSettings[self._jab]['pt1']['y']), Point.Point(gameSettings[self._jab]['pt2']['x'], gameSettings[self._jab]['pt2']['y']))
-            punchCoords[self._cross] = Rectangle.Rectangle(Point.Point(gameSettings[self._cross]['pt1']['x'], gameSettings[self._cross]['pt1']['y']), Point.Point(gameSettings[self._cross]['pt2']['x'], gameSettings[self._cross]['pt2']['y']))
-            punchCoords[self._leftHook] = Rectangle.Rectangle(Point.Point(gameSettings[self._leftHook]['pt1']['x'], gameSettings[self._leftHook]['pt1']['y']), Point.Point(gameSettings[self._leftHook]['pt2']['x'], gameSettings[self._leftHook]['pt2']['y']))
-            punchCoords[self._rightHook] = Rectangle.Rectangle(Point.Point(gameSettings[self._rightHook]['pt1']['x'], gameSettings[self._rightHook]['pt1']['y']), Point.Point(gameSettings[self._rightHook]['pt2']['x'], gameSettings[self._rightHook]['pt2']['y']))
-            punchCoords[self._leftUppercut] = Rectangle.Rectangle(Point.Point(gameSettings[self._leftUppercut]['pt1']['x'], gameSettings[self._leftUppercut]['pt1']['y']), Point.Point(gameSettings[self._leftUppercut]['pt2']['x'], gameSettings[self._leftUppercut]['pt2']['y']))
-            punchCoords[self._rightUppercut] = Rectangle.Rectangle(Point.Point(gameSettings[self._rightUppercut]['pt1']['x'], gameSettings[self._rightUppercut]['pt1']['y']), Point.Point(gameSettings[self._rightUppercut]['pt2']['x'], gameSettings[self._rightUppercut]['pt2']['y']))
+            self.punchCoords[self._jab] = Rectangle.Rectangle(Point.Point(gameSettings[self._jab]['pt1']['x'], gameSettings[self._jab]['pt1']['y']), Point.Point(gameSettings[self._jab]['pt2']['x'], gameSettings[self._jab]['pt2']['y']))
+            self.punchCoords[self._cross] = Rectangle.Rectangle(Point.Point(gameSettings[self._cross]['pt1']['x'], gameSettings[self._cross]['pt1']['y']), Point.Point(gameSettings[self._cross]['pt2']['x'], gameSettings[self._cross]['pt2']['y']))
+            self.punchCoords[self._leftHook] = Rectangle.Rectangle(Point.Point(gameSettings[self._leftHook]['pt1']['x'], gameSettings[self._leftHook]['pt1']['y']), Point.Point(gameSettings[self._leftHook]['pt2']['x'], gameSettings[self._leftHook]['pt2']['y']))
+            self.punchCoords[self._rightHook] = Rectangle.Rectangle(Point.Point(gameSettings[self._rightHook]['pt1']['x'], gameSettings[self._rightHook]['pt1']['y']), Point.Point(gameSettings[self._rightHook]['pt2']['x'], gameSettings[self._rightHook]['pt2']['y']))
+            self.punchCoords[self._leftUppercut] = Rectangle.Rectangle(Point.Point(gameSettings[self._leftUppercut]['pt1']['x'], gameSettings[self._leftUppercut]['pt1']['y']), Point.Point(gameSettings[self._leftUppercut]['pt2']['x'], gameSettings[self._leftUppercut]['pt2']['y']))
+            self.punchCoords[self._rightUppercut] = Rectangle.Rectangle(Point.Point(gameSettings[self._rightUppercut]['pt1']['x'], gameSettings[self._rightUppercut]['pt1']['y']), Point.Point(gameSettings[self._rightUppercut]['pt2']['x'], gameSettings[self._rightUppercut]['pt2']['y']))
         except:
             print('Error: could not retrieve punch coords from game settings')
-            punchCoords = {}.fromkeys(self._punches)
-
-        return punchCoords
+            self.punchCoords = {}.fromkeys(self._punches)
 
     def loadCombinations(self, gameSettings):
-        combinations = []
         if isinstance(gameSettings, list) and len(gameSettings) > 0:
-            combinations = gameSettings
+            self.combinations = gameSettings
         else:
-            combinations.append([self._jab, self._cross, self._jab, self._cross])
-
-        return combinations
+            self.combinations.append([self._jab, self._cross, self._jab, self._cross])
 
     def savePunchCoords(self, punchCoords):
         gameSettings = self.getGameSettings(self._gameName, self._defaultGameSettings)
@@ -395,6 +392,14 @@ class BoxingChallenge(Challenge.Challenge):
                     self.hitTargetTimer = Timer.Timer(self.hitTargetMaxTime)
                     break
 
+                if self.gameSettings["preferences"]["showClassDetectionBoundingBoxesDuringGamePlay"]:
+                    self.videoManager.addRectangle(currentDetection.pt1.toTuple(), currentDetection.pt2.toTuple(), self.red, 3)
+
+            if self.gameSettings["preferences"]["showTargetThresholdBoundingBox"]:
+                threshPt1 = Point.Point(self.currentTarget.pt1.x - self.hitTargetThreshold, self.currentTarget.pt1.y - self.hitTargetThreshold)
+                threshPt2 = Point.Point(self.currentTarget.pt2.x + self.hitTargetThreshold, self.currentTarget.pt2.y + self.hitTargetThreshold)
+                self.videoManager.addRectangle(threshPt1.toTuple(), threshPt2.toTuple(), self.green, 3)
+                
             self.videoManager.addRectangle(self.currentTarget.pt1.toTuple(), self.currentTarget.pt2.toTuple(), self.yellow, 3)
             self.addTextToRectangle(self.combinations[self.currentComboIndex][self.currentPunchIndex], self.currentTarget)
             
