@@ -29,7 +29,8 @@ class BoxingChallenge(Challenge.Challenge):
             "detectionScoreThreshold": 0,
             "hitTargetThreshold": 0,
             "showTargetThresholdBoundingBox": False,
-            "showClassDetectionBoundingBoxesDuringGamePlay": False
+            "showClassDetectionBoundingBoxesDuringGamePlay": False,
+            "freezeBoundingBoxesAndWaitForUserInputWhenTargetHit": False
         },
         "timerVars": {
             "awaitPlayMaxTime": 5,
@@ -66,9 +67,11 @@ class BoxingChallenge(Challenge.Challenge):
     currentPunchIndex = 0
 
     currentTarget = None
+    successfulAttempt = None
+    punchBeingCalibrated = None
+
     isCurrentTargetHit = False
     hitTargetThreshold = 0
-    punchBeingCalibrated = None
 
     debugSetting = 0
 
@@ -360,6 +363,7 @@ class BoxingChallenge(Challenge.Challenge):
             self.isCurrentTargetHit = False
             self.currentComboIndex = 0
             self.currentPunchIndex = 0
+            self.successfulAttempt = None
             self.hitTargetTimer = None
             self.currentTarget = None
             return self.gameModeAwaitingCalibration
@@ -371,6 +375,7 @@ class BoxingChallenge(Challenge.Challenge):
         
         elif self.hitTargetTimer != None and self.hitTargetTimer.isElapsed():
             self.hitTargetTimer = None
+            self.successfulAttempt = None
             self.isCurrentTargetHit = False
 
             self.currentPunchIndex = self.currentPunchIndex + 1
@@ -386,13 +391,23 @@ class BoxingChallenge(Challenge.Challenge):
         self.videoManager.runDetection()
         if self.isCurrentTargetHit:
             self.videoManager.addRectangle(self.currentTarget.pt1.toTuple(), self.currentTarget.pt2.toTuple(), self.green, 3)
+            if self.gameSettings["preferences"]["freezeBoundingBoxesAndWaitForUserInputWhenTargetHit"]:
+                self.videoManager.addRectangle(self.successfulAttempt.pt1.toTuple(), self.successfulAttempt.pt2.toTuple(), self.red, 3)
+                if self.gameSettings["preferences"]["showTargetThresholdBoundingBox"]:
+                    threshPt1 = Point.Point(self.currentTarget.pt1.x - self.hitTargetThreshold, self.currentTarget.pt1.y - self.hitTargetThreshold)
+                    threshPt2 = Point.Point(self.currentTarget.pt2.x + self.hitTargetThreshold, self.currentTarget.pt2.y + self.hitTargetThreshold)
+                    self.videoManager.addRectangle(threshPt1.toTuple(), threshPt2.toTuple(), self.green, 3)
+                if cmd == 110: # n
+                    self.hitTargetTimer = Timer.Timer(self.hitTargetMaxTime)
         else:
             currentDetections = self.videoManager.findDetections(self._classesToDetect)
             for currentDetection in currentDetections:
                 self.isCurrentTargetHit = self.isTargetHit(self.currentTarget, currentDetection)
                 if self.isCurrentTargetHit:
-                    self.hitTargetTimer = Timer.Timer(self.hitTargetMaxTime)
-                    break
+                    self.successfulAttempt = currentDetection
+                    if not self.gameSettings["preferences"]["freezeBoundingBoxesAndWaitForUserInputWhenTargetHit"]:
+                        self.hitTargetTimer = Timer.Timer(self.hitTargetMaxTime)
+                        break
 
                 if self.gameSettings["preferences"]["showClassDetectionBoundingBoxesDuringGamePlay"]:
                     self.videoManager.addRectangle(currentDetection.pt1.toTuple(), currentDetection.pt2.toTuple(), self.red, 3)
