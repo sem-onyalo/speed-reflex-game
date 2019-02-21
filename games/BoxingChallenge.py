@@ -85,11 +85,13 @@ class BoxingChallenge(Challenge.Challenge):
     # ##################################################
 
     def loadGameSettings(self):
+        print('\nLoading game settings')
         self.gameSettings = self.getGameSettings(self._gameName, self._defaultGameSettings)
         self.loadPunchCoords(self.gameSettings["punchCoords"])
         self.loadCombinations(self.gameSettings["combinations"])
         self.loadTimerVars(self.gameSettings["timerVars"])
         self.loadThresholdSettings(self.gameSettings["preferences"])
+        print('Load complete\n\n')
 
     def loadThresholdSettings(self, gameSettings):
         if "hitTargetThreshold" in gameSettings and gameSettings["hitTargetThreshold"] > 0:
@@ -399,7 +401,7 @@ class BoxingChallenge(Challenge.Challenge):
                 threshPt1 = Point.Point(self.currentTarget.pt1.x - self.hitTargetThreshold, self.currentTarget.pt1.y - self.hitTargetThreshold)
                 threshPt2 = Point.Point(self.currentTarget.pt2.x + self.hitTargetThreshold, self.currentTarget.pt2.y + self.hitTargetThreshold)
                 self.videoManager.addRectangle(threshPt1.toTuple(), threshPt2.toTuple(), self.green, 3)
-                
+
             self.videoManager.addRectangle(self.currentTarget.pt1.toTuple(), self.currentTarget.pt2.toTuple(), self.yellow, 3)
             self.addTextToRectangle(self.combinations[self.currentComboIndex][self.currentPunchIndex], self.currentTarget)
             
@@ -452,7 +454,10 @@ class BoxingChallenge(Challenge.Challenge):
         if cmd == 27: # ESC
             continueRun = False
 
-        elif cmd == 48 or self.gameMode == self.gameModeDebug:
+        if cmd == 114: # r:
+            self.loadGameSettings()
+
+        elif cmd == 48 or self.gameMode == self.gameModeDebug: # 0
             newGameMode = self.debug(cmd)
 
         elif self.gameMode == self.gameModeAwaitingCalibration:
