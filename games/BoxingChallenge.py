@@ -258,6 +258,10 @@ class BoxingChallenge(Challenge.Challenge):
             innerThreshPt2 = Point.Point(currentTarget.pt2.x - hitTargetThreshold, currentTarget.pt2.y - hitTargetThreshold)
             self.videoManager.addRectangle(innerThreshPt1.toTuple(), innerThreshPt2.toTuple(), self.purple, 3)
 
+    def showTarget(self, target, text):
+        self.videoManager.addRectangle(target.pt1.toTuple(), target.pt2.toTuple(), self.yellow, 3)
+        self.addTextToRectangle(text, target)
+
     # ##################################################
     #              OBJECT DETECTED HANDLERS             
     # ##################################################
@@ -433,8 +437,7 @@ class BoxingChallenge(Challenge.Challenge):
             if self.gameSettings["preferences"]["showTargetThresholdBoundingBox"]:
                 self.showTargetThresholdBoundingBoxes(self.currentTarget, self.hitTargetThreshold)
 
-            self.videoManager.addRectangle(self.currentTarget.pt1.toTuple(), self.currentTarget.pt2.toTuple(), self.yellow, 3)
-            self.addTextToRectangle(self.combinations[self.currentComboIndex][self.currentPunchIndex], self.currentTarget)
+            self.showTarget(self.currentTarget, self.combinations[self.currentComboIndex][self.currentPunchIndex])
             
         return self.gameMode
 
@@ -456,12 +459,17 @@ class BoxingChallenge(Challenge.Challenge):
     def debug(self, cmd):
         if cmd == 120: # x
             self.debugSetting = 0
+            self.currentPunchIndex = 0
+            self.calibrationTimer = None
+            self.punchBeingCalibrated = None
             return self.gameModeAwaitingCalibration
         else:
             if self.debugSetting == 0 or cmd == 49: # 1
                 self.debugSetting = 1
             elif cmd == 50: # 2
                 self.debugSetting = 2
+            elif cmd == 51: # 3
+                self.debugSetting = 3
 
             self.videoManager.runDetection()
             if self.debugSetting == 1:
@@ -470,6 +478,25 @@ class BoxingChallenge(Challenge.Challenge):
             elif self.debugSetting == 2:
                 self.addText('findBestAndClosestDetection')
                 self.videoManager.findBestAndClosestDetection(self._classesToDetect[0], self.getLabelledObjectDetectedHandler())
+            elif self.debugSetting == 3:
+                self.addText('cycleThroughPunches')
+                if self.punchBeingCalibrated == None:
+                    self.currentPunchIndex = 0
+                    self.punchBeingCalibrated = self.punchCoords[self._punches[self.currentPunchIndex]]
+
+                if cmd == 110: # n
+                    self.currentPunchIndex = self.currentPunchIndex + 1
+                    if self.currentPunchIndex >= len(self._punches):
+                        self.currentPunchIndex = 0
+                    self.punchBeingCalibrated = self.punchCoords[self._punches[self.currentPunchIndex]]
+                
+                self.showTarget(self.punchBeingCalibrated, self._punches[self.currentPunchIndex])
+                if self.gameSettings["preferences"]["showTargetThresholdBoundingBox"]:
+                    self.showTargetThresholdBoundingBoxes(self.punchBeingCalibrated, self.hitTargetThreshold)
+                if self.gameSettings["preferences"]["showClassDetectionBoundingBoxesDuringGamePlay"]:
+                    currentDetections = self.videoManager.findDetections(self._classesToDetect)
+                    for currentDetection in currentDetections:
+                        self.videoManager.addRectangle(currentDetection.pt1.toTuple(), currentDetection.pt2.toTuple(), self.red, 3)
 
             return self.gameModeDebug
 
