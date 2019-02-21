@@ -24,10 +24,14 @@ class BoxingChallenge(Challenge.Challenge):
 
     _punches = [_jab, _cross, _leftHook, _rightHook, _leftUppercut, _rightUppercut]
 
+    _hitTargetType_MinMaxRegion = 1
+    _hitTargetType_MinRegion = 2
+
     _defaultGameSettings = {
         "preferences": {
-            "detectionScoreThreshold": 0,
+            "hitTargetType": 1,
             "hitTargetThreshold": 0,
+            "detectionScoreThreshold": 0,
             "showTargetThresholdBoundingBox": False,
             "showClassDetectionBoundingBoxesDuringGamePlay": False,
             "freezeBoundingBoxesAndWaitForUserInputWhenTargetHit": False
@@ -221,17 +225,24 @@ class BoxingChallenge(Challenge.Challenge):
     def resetPunchCoords(self):
         self.punchCoords = {}.fromkeys(self._punches)
 
-    def isTargetHit(self, currentTarget, currentAttempt):
+    def isTargetHit(self, currentTarget, currentAttempt, hitTargetThreshold):
         if currentTarget == None or currentAttempt == None:
             return False
         elif self.isCurrentTargetHit:
             return True
         else:
-            xLeftDiff = abs(currentAttempt.pt1.x - currentTarget.pt1.x)
-            yTopDiff = abs(currentAttempt.pt1.y - currentTarget.pt1.y)
-            xRightDiff = abs(currentAttempt.pt2.x - currentTarget.pt2.x)
-            yBottomDiff = abs(currentAttempt.pt2.y - currentTarget.pt2.y)
-            return xLeftDiff < self.hitTargetThreshold and yTopDiff < self.hitTargetThreshold and xRightDiff < self.hitTargetThreshold and yBottomDiff < self.hitTargetThreshold
+            if self.gameSettings["preferences"]["hitTargetType"] == self._hitTargetType_MinMaxRegion:
+                xLeftDiff = abs(currentAttempt.pt1.x - currentTarget.pt1.x)
+                yTopDiff = abs(currentAttempt.pt1.y - currentTarget.pt1.y)
+                xRightDiff = abs(currentAttempt.pt2.x - currentTarget.pt2.x)
+                yBottomDiff = abs(currentAttempt.pt2.y - currentTarget.pt2.y)
+                return xLeftDiff < hitTargetThreshold and yTopDiff < hitTargetThreshold and xRightDiff < hitTargetThreshold and yBottomDiff < hitTargetThreshold
+            if self.gameSettings["preferences"]["hitTargetType"] == self._hitTargetType_MinRegion:
+                isWithinPt1 = currentAttempt.pt1.x > (currentTarget.pt1.x - hitTargetThreshold) and currentAttempt.pt1.y > (currentTarget.pt1.y - hitTargetThreshold)
+                isWithinPt2 = currentAttempt.pt2.x < (currentTarget.pt2.x + hitTargetThreshold) and currentAttempt.pt2.y < (currentTarget.pt2.y + hitTargetThreshold)
+                return isWithinPt1 and isWithinPt2
+            else:
+                raise RuntimeError('Game settings error: hit target type', self.gameSettings["preferences"]["hitTargetType"], 'is invalid')
 
     def startCountdown_AwaitingPlay(self):
         # TODO: make method generic, not specific to 'gameModeAwaitingPlay'
@@ -241,10 +252,11 @@ class BoxingChallenge(Challenge.Challenge):
     def showTargetThresholdBoundingBoxes(self, currentTarget, hitTargetThreshold):
         outerThreshPt1 = Point.Point(currentTarget.pt1.x - hitTargetThreshold, currentTarget.pt1.y - hitTargetThreshold)
         outerThreshPt2 = Point.Point(currentTarget.pt2.x + hitTargetThreshold, currentTarget.pt2.y + hitTargetThreshold)
-        innerThreshPt1 = Point.Point(currentTarget.pt1.x + hitTargetThreshold, currentTarget.pt1.y + hitTargetThreshold)
-        innerThreshPt2 = Point.Point(currentTarget.pt2.x - hitTargetThreshold, currentTarget.pt2.y - hitTargetThreshold)
         self.videoManager.addRectangle(outerThreshPt1.toTuple(), outerThreshPt2.toTuple(), self.purple, 3)
-        self.videoManager.addRectangle(innerThreshPt1.toTuple(), innerThreshPt2.toTuple(), self.purple, 3)
+        if self.gameSettings["preferences"]["hitTargetType"] == self._hitTargetType_MinMaxRegion:
+            innerThreshPt1 = Point.Point(currentTarget.pt1.x + hitTargetThreshold, currentTarget.pt1.y + hitTargetThreshold)
+            innerThreshPt2 = Point.Point(currentTarget.pt2.x - hitTargetThreshold, currentTarget.pt2.y - hitTargetThreshold)
+            self.videoManager.addRectangle(innerThreshPt1.toTuple(), innerThreshPt2.toTuple(), self.purple, 3)
 
     # ##################################################
     #              OBJECT DETECTED HANDLERS             
@@ -408,7 +420,7 @@ class BoxingChallenge(Challenge.Challenge):
         else:
             currentDetections = self.videoManager.findDetections(self._classesToDetect)
             for currentDetection in currentDetections:
-                self.isCurrentTargetHit = self.isTargetHit(self.currentTarget, currentDetection)
+                self.isCurrentTargetHit = self.isTargetHit(self.currentTarget, currentDetection, self.hitTargetThreshold)
                 if self.isCurrentTargetHit:
                     self.successfulAttempt = currentDetection
                     if not self.gameSettings["preferences"]["freezeBoundingBoxesAndWaitForUserInputWhenTargetHit"]:
