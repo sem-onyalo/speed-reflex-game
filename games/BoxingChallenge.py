@@ -73,6 +73,7 @@ class BoxingChallenge(Challenge.Challenge):
     currentTarget = None
     successfulAttempt = None
     punchBeingCalibrated = None
+    punchChosenByUserToCalibrate = False
 
     isCurrentTargetHit = False
     hitTargetThreshold = 0
@@ -306,6 +307,10 @@ class BoxingChallenge(Challenge.Challenge):
         text = "Play again (Y/N)?"
         self.addText(text)
 
+    def showCalibrateWhatMenu(self):
+        text = "Calibrate what?"
+        self.addText(text)
+
     # ##################################################
     #                 GAME MODE METHODS                 
     # ##################################################
@@ -313,59 +318,71 @@ class BoxingChallenge(Challenge.Challenge):
     def awaitCalibration(self, cmd):
         self.videoManager.readNewFrame()
 
-        if self.awaitCalibrationTimer != None:
-            if self.awaitCalibrationTimer.isElapsed():
-                self.awaitCalibrationTimer = None
-                return self.gameModeCalibration
-            else:
-                self.addText(str(self.awaitCalibrationTimer.getElapsed()))
-        elif not self.isPunchCoordsSet():
+        if not self.isPunchCoordsSet():
             self.showAwaitingCalibrationMenu()
             if cmd == 67 or cmd == 99: # C or c
-                self.awaitCalibrationTimer = Timer.Timer(self.awaitCalibrationMaxTime)
+                return self.gameModeCalibration
         else:
             self.showAwaitingCalibrationOrPlayMenu()
             if cmd == 80 or cmd == 112: # P or p
                 self.startCountdown_AwaitingPlay()
             elif cmd == 67 or cmd == 99: # C or c
-                self.resetPunchCoords()
-                self.awaitCalibrationTimer = Timer.Timer(self.awaitCalibrationMaxTime)
+                return self.gameModeCalibration
         
         return self.gameMode
 
-    def calibrate(self):
+    def calibrate(self, cmd):
         self.videoManager.runDetection()
 
-        if self.punchBeingCalibrated == None:
-            for punch in self._punches:
-                if self.punchCoords[punch] == None:
-                    self.punchBeingCalibrated = punch
-                    break
-
-        if self.punchBeingCalibrated == None:
-            self.savePunchCoords(self.punchCoords)
-            return self.gameModeAwaitingCalibration
+        if not self.punchChosenByUserToCalibrate:
+            self.showCalibrateWhatMenu()
+            if cmd >= 48 and cmd <= 54: # 0-6
+                if cmd == 48: # 0
+                    self.resetPunchCoords()
+                    print(self.gameMode, 'Calibrating punches: all')
+                else: # 1-6
+                    punch = self._punches[int(cmd) - 49]
+                    self.punchCoords[punch] = None
+                    print(self.gameMode, 'Calibrating punches:', punch)
+                self.punchChosenByUserToCalibrate = True
+                self.awaitCalibrationTimer = Timer.Timer(self.awaitCalibrationMaxTime)
+        elif self.awaitCalibrationTimer != None:
+            if self.awaitCalibrationTimer.isElapsed():
+                self.awaitCalibrationTimer = None
+            else:
+                self.addText(str(self.awaitCalibrationTimer.getElapsed()))
         else:
-            self.addText(self.punchBeingCalibrated)
+            if self.punchBeingCalibrated == None:
+                for punch in self._punches:
+                    if self.punchCoords[punch] == None:
+                        self.punchBeingCalibrated = punch
+                        break
 
-            if self.calibrationTimer != None and self.calibrationTimer.isElapsed():
-                self.calibrationTimer = None
-                if self.punchCoords[self.punchBeingCalibrated] == None:
-                    print(self.gameMode + ':', 'Resetting timer and re-attempting to retrieve detection for', self.punchBeingCalibrated)
-                else:
-                    print(self.gameMode + ':', self.punchBeingCalibrated, 'coords: ((' + str(self.punchCoords[self.punchBeingCalibrated].pt1.x) + ',', str(self.punchCoords[self.punchBeingCalibrated].pt1.y) + '),', '(' + str(self.punchCoords[self.punchBeingCalibrated].pt2.x) + ',', str(self.punchCoords[self.punchBeingCalibrated].pt2.y) + '))')
-                    self.punchBeingCalibrated = None
+            if self.punchBeingCalibrated == None:
+                self.savePunchCoords(self.punchCoords)
+                self.punchChosenByUserToCalibrate = False
+                return self.gameModeAwaitingCalibration
+            else:
+                self.addText(self.punchBeingCalibrated)
 
-            if self.calibrationTimer == None:
-                self.calibrationTimer = Timer.Timer(self.calibrationMaxTime)
+                if self.calibrationTimer != None and self.calibrationTimer.isElapsed():
+                    self.calibrationTimer = None
+                    if self.punchCoords[self.punchBeingCalibrated] == None:
+                        print(self.gameMode + ':', 'Resetting timer and re-attempting to retrieve detection for', self.punchBeingCalibrated)
+                    else:
+                        print(self.gameMode + ':', self.punchBeingCalibrated, 'coords: ((' + str(self.punchCoords[self.punchBeingCalibrated].pt1.x) + ',', str(self.punchCoords[self.punchBeingCalibrated].pt1.y) + '),', '(' + str(self.punchCoords[self.punchBeingCalibrated].pt2.x) + ',', str(self.punchCoords[self.punchBeingCalibrated].pt2.y) + '))')
+                        self.punchBeingCalibrated = None
 
-            bestDetection = self.videoManager.findBestAndClosestDetection(self._classesToDetect[0], self.getBestObjectDetectedHandler())
+                if self.calibrationTimer == None:
+                    self.calibrationTimer = Timer.Timer(self.calibrationMaxTime)
 
-            # TODO: add algorithm to choose best detection out of all attempts, not just last best detection
-            if bestDetection != None:
-                self.punchCoords[self.punchBeingCalibrated] = bestDetection
+                bestDetection = self.videoManager.findBestAndClosestDetection(self._classesToDetect[0], self.getBestObjectDetectedHandler())
 
-            return self.gameMode
+                # TODO: add algorithm to choose best detection out of all attempts, not just last best detection
+                if bestDetection != None:
+                    self.punchCoords[self.punchBeingCalibrated] = bestDetection
+
+        return self.gameMode
 
     def awaitPlay(self, cmd):
         self.videoManager.readNewFrame()
@@ -515,14 +532,14 @@ class BoxingChallenge(Challenge.Challenge):
         if cmd == 114: # r:
             self.loadGameSettings()
 
-        elif cmd == 48 or self.gameMode == self.gameModeDebug: # 0
+        elif cmd == 100 or self.gameMode == self.gameModeDebug: # d
             newGameMode = self.debug(cmd)
 
         elif self.gameMode == self.gameModeAwaitingCalibration:
             newGameMode = self.awaitCalibration(cmd)
         
         elif self.gameMode == self.gameModeCalibration:
-            newGameMode = self.calibrate()
+            newGameMode = self.calibrate(cmd)
 
         elif self.gameMode == self.gameModeAwaitingPlay:
             newGameMode = self.awaitPlay(cmd)
