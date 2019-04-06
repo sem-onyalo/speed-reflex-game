@@ -61,6 +61,7 @@ class BoxingChallenge(Challenge.Challenge):
     awaitCalibrationMaxTime = 0
     gameModeAwaitingPlayMaxTime = 0
 
+    showTargetTime = None
     awaitPlayTimer = None
     hitTargetTimer = None
     calibrationTimer = None
@@ -350,7 +351,7 @@ class BoxingChallenge(Challenge.Challenge):
             if self.awaitCalibrationTimer.isElapsed():
                 self.awaitCalibrationTimer = None
             else:
-                self.addText(str(self.awaitCalibrationTimer.getElapsed()))
+                self.addText(str(self.awaitCalibrationTimer.getElapsedCountdown()))
         else:
             if self.punchBeingCalibrated == None:
                 for punch in self._punches:
@@ -391,7 +392,7 @@ class BoxingChallenge(Challenge.Challenge):
                 self.awaitPlayTimer = None
                 return self.gameModePlay
             else:
-                self.addText(str(self.awaitPlayTimer.getElapsed()))
+                self.addText(str(self.awaitPlayTimer.getElapsedCountdown()))
         else:
             self.showAwaitingPlayMenu()
             if cmd == 80 or cmd == 112: # P or p
@@ -405,6 +406,7 @@ class BoxingChallenge(Challenge.Challenge):
             self.currentComboIndex = 0
             self.currentPunchIndex = 0
             self.successfulAttempt = None
+            self.showTargetTime = None
             self.hitTargetTimer = None
             self.currentTarget = None
             return self.gameModeAwaitingCalibration
@@ -413,6 +415,7 @@ class BoxingChallenge(Challenge.Challenge):
             self.currentComboIndex = 0
             self.currentPunchIndex = 0
             self.currentTarget = self.punchCoords[self.combinations[self.currentComboIndex][self.currentPunchIndex]]
+            self.showTargetTime = time.time()
         
         elif self.hitTargetTimer != None and self.hitTargetTimer.isElapsed():
             self.hitTargetTimer = None
@@ -428,6 +431,7 @@ class BoxingChallenge(Challenge.Challenge):
                     return self.gameModeWin
 
             self.currentTarget = self.punchCoords[self.combinations[self.currentComboIndex][self.currentPunchIndex]]
+            self.showTargetTime = time.time()
 
         self.videoManager.runDetection()
         if self.isCurrentTargetHit:
@@ -444,6 +448,8 @@ class BoxingChallenge(Challenge.Challenge):
                 self.isCurrentTargetHit = self.isTargetHit(self.currentTarget, currentDetection, self.hitTargetThreshold)
                 if self.isCurrentTargetHit:
                     self.successfulAttempt = currentDetection
+                    hitTargetElapsedTime = time.time() - self.showTargetTime
+                    print(self.combinations[self.currentComboIndex][self.currentPunchIndex] + ':', str(hitTargetElapsedTime) + ' seconds')
                     if not self.gameSettings["preferences"]["freezeBoundingBoxesAndWaitForUserInputWhenTargetHit"]:
                         self.hitTargetTimer = Timer.Timer(self.hitTargetMaxTime)
                         break
