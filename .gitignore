@@ -105,8 +105,9 @@ ENV/
 .vscode
 .idea
 
-# model training dir
+# model training and deployment directories
 training/
+deployment/
 
 # game settings file
 *.settings.json
