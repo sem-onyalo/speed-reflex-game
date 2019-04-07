@@ -1,11 +1,14 @@
 import cv2 as cv
 
+# Set constants
+userDirectory = '/home/pi'
+
 # Set run params
 scoreThreshold = 0.3
-inputImage = '/home/pi/Downloads/boxing-1.jpeg'
+inputImagePath = userDirectory + '/code/speed-reflex-game/test/test-image.jpeg'
 
 # Load the model 
-modelDirectory = '/home/pi/code/speed-reflex-game/models/mobilenet_ssd_v1_boxing/FP16'
+modelDirectory = userDirectory + '/code/speed-reflex-game/models/mobilenet_ssd_v1_boxing/FP16'
 xmlFile = modelDirectory + '/transformed_frozen_inference_graph.xml'
 binFile = modelDirectory + '/transformed_frozen_inference_graph.bin'
 net = cv.dnn.readNet(xmlFile, binFile)
@@ -14,26 +17,24 @@ net = cv.dnn.readNet(xmlFile, binFile)
 net.setPreferableTarget(cv.dnn.DNN_TARGET_MYRIAD)
       
 # Read an image 
-frame = cv.imread(inputImage)
+frame = cv.imread(inputImagePath)
       
 # Prepare input blob and perform an inference 
-#blob = cv.dnn.blobFromImage(frame, size=(672, 384), ddepth=cv.CV_8U)
-blob = cv.dnn.blobFromImage(frame, 1.0/127.5, (300, 300), (127.5, 127.5, 127.5), swapRB=True, crop=False)
+blob = cv.dnn.blobFromImage(frame, size=(300, 300), swapRB=True, crop=False)
 net.setInput(blob) 
 det = net.forward()
 
 # Draw detections
-rows = det.shape[0]
-cols = det.shape[1]
+rows = frame.shape[0]
+cols = frame.shape[1]
 for detection in det[0,0,:,:]:
     score = float(detection[2])
-    class_id = int(detection[1])
     if score > scoreThreshold:
-        xLeftPos = int(detection[3] * cols) # marginLeft
-        yTopPos = int(detection[4] * rows) # marginTop
-        xRightPos = int(detection[5] * cols)
-        yBottomPos = int(detection[6] * rows)
-        cv.rectangle(self.img, (xLeftPos, yTopPos), (xRightPos, yBottomPos), (0, 255, 0))
+        xmin = int(detection[3] * cols)
+        ymin = int(detection[4] * rows)
+        xmax = int(detection[5] * cols)
+        ymax = int(detection[6] * rows)
+        cv.rectangle(frame, (xmin, ymin), (xmax, ymax), (0, 255, 0))
 
 # Save the frame to an image file 
-cv.imwrite('/home/pi/code/speed-reflex-game/test/out.png', frame) 
+cv.imwrite(userDirectory + '/code/speed-reflex-game/test/out-boxing.png', frame) 

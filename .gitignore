@@ -110,7 +110,7 @@ training/
 deployment/
 
 # test files
-test/out.png
+test/out*.png
 
 # game settings file
 *.settings.json
